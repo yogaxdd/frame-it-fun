@@ -20,6 +20,10 @@ const CameraPage = () => {
   
   const initCamera = useCallback(async () => {
     try {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      
       const constraints = {
         video: {
           width: { ideal: 1280 },
@@ -32,14 +36,17 @@ const CameraPage = () => {
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play();
+          setIsCameraReady(true);
+        };
         setStream(mediaStream);
-        setIsCameraReady(true);
       }
     } catch (error) {
       console.error("Error accessing camera:", error);
       toast.error("Unable to access camera. Please ensure you have given permission.");
     }
-  }, []);
+  }, [stream]);
   
   useEffect(() => {
     initCamera();
@@ -49,7 +56,7 @@ const CameraPage = () => {
         stream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [initCamera, stream]);
+  }, [initCamera]);
   
   const takePhoto = useCallback(() => {
     if (!isCameraReady || !canvasRef.current || !videoRef.current) return;
@@ -199,7 +206,14 @@ const CameraPage = () => {
               playsInline
               muted
               className={`w-full h-full object-cover ${isMirrored ? 'scale-x-[-1]' : ''}`}
+              style={{ display: isCameraReady ? 'block' : 'none' }}
             />
+            
+            {!isCameraReady && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black">
+                <p className="text-white">Loading camera...</p>
+              </div>
+            )}
             
             {countDown > 0 && (
               <div className="absolute inset-0 flex items-center justify-center">

@@ -1,3 +1,4 @@
+
 document.addEventListener('DOMContentLoaded', function() {
   // DOM Elements
   const homePageEl = document.getElementById('home-page');
@@ -91,6 +92,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initialize camera
   async function initCamera() {
     try {
+      // Always stop any existing stream first to prevent flickering
       if (stream) {
         stopCamera();
       }
@@ -104,10 +106,16 @@ document.addEventListener('DOMContentLoaded', function() {
       };
       
       stream = await navigator.mediaDevices.getUserMedia(constraints);
+      
+      // Only set the stream once we're ready
       videoEl.srcObject = stream;
       
-      // Apply mirroring based on state
-      videoEl.classList.toggle('mirrored', isMirrored);
+      // Make sure video is properly loaded before displaying
+      videoEl.onloadedmetadata = () => {
+        videoEl.play();
+        // Apply mirroring based on state
+        videoEl.classList.toggle('mirrored', isMirrored);
+      };
       
     } catch (error) {
       console.error('Error accessing camera:', error);
@@ -120,6 +128,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
       stream = null;
+      videoEl.srcObject = null;
     }
   }
 
