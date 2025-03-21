@@ -451,7 +451,7 @@ document.addEventListener('DOMContentLoaded', function() {
         clientY = e.clientY;
       } else if (e.type === 'touchmove') {
         clientX = e.touches[0].clientX;
-        clientY = e.clientY;
+        clientY = e.touches[0].clientY;
       }
       
       const dx = clientX - startX;
