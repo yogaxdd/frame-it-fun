@@ -14,6 +14,10 @@ import Header from "@/components/Header";
 import { PhotoContext } from "@/App";
 import { stickers } from "@/data/stickers";
 import { toast } from "sonner";
+import html2canvas from "html2canvas";
+
+// Add html2canvas dependency
+<lov-add-dependency>html2canvas@latest</lov-add-dependency>
 
 // Sticker component
 const StickerElement = ({
@@ -160,6 +164,8 @@ const EditPage = () => {
   const [dateText, setDateText] = useState(new Date().toLocaleDateString());
   const [activeBackgroundColor, setActiveBackgroundColor] = useState("#FFFFFF");
   const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [studioName, setStudioName] = useState("Sinemarolas Studio");
+  const [showStudioName, setShowStudioName] = useState(false);
   
   useEffect(() => {
     if (!photoContext || photoContext.photoData.photos.length === 0) {
@@ -251,9 +257,21 @@ const EditPage = () => {
     const container = document.getElementById('photo-strip');
     if (!container) return;
     
-    // We'll need to use a library like html2canvas to capture the rendered DOM
-    // For this example, we'll just show a toast
-    toast.success("Photo strip downloaded!");
+    html2canvas(container, {
+      backgroundColor: activeBackgroundColor,
+      allowTaint: true,
+      useCORS: true,
+      scale: 2 // Higher quality
+    }).then(canvas => {
+      const link = document.createElement('a');
+      link.download = 'photo-strip.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      toast.success("Photo strip downloaded!");
+    }).catch(err => {
+      console.error("Error downloading photo strip:", err);
+      toast.error("Failed to download. Please try again.");
+    });
   };
   
   const handleRetake = () => {
@@ -272,13 +290,21 @@ const EditPage = () => {
     setIsPreviewMode(!isPreviewMode);
   };
   
+  const handleStudioNameToggle = (enabled: boolean) => {
+    setShowStudioName(enabled);
+    setPhotoData({
+      ...photoData,
+      studioNameEnabled: enabled
+    });
+  };
+  
   // Background color options
   const backgroundColors = [
     { color: "#000000", label: "Black" },
     { color: "#FFFFFF", label: "White" },
     { color: "#FBF0DD", label: "Cream" },
-    { color: "#E9A54D", label: "Gold" },
-    { color: "#FFC0CB", label: "Pink" }
+    { color: "#E9F0FB", label: "Light Blue" },
+    { color: "#F5F8FF", label: "Soft Blue" }
   ];
   
   // Filter options
@@ -312,12 +338,22 @@ const EditPage = () => {
                     alt={`Photo ${index + 1}`}
                     className={`w-full h-auto rounded ${photoData.photoFilter}`}
                   />
-                  
-                  {index === photoData.photos.length - 1 && photoData.dateEnabled && (
-                    <div className="date-label">{dateText}</div>
-                  )}
                 </div>
               ))}
+              
+              {/* Date label at the bottom */}
+              {photoData.dateEnabled && (
+                <div className="date-text">
+                  {dateText}
+                </div>
+              )}
+              
+              {/* Studio name label */}
+              {showStudioName && (
+                <div className="studio-name-text">
+                  {studioName}
+                </div>
+              )}
               
               {/* Render stickers on top of photos */}
               {photoData.stickers.map(sticker => (
@@ -345,12 +381,22 @@ const EditPage = () => {
                           alt={`Photo ${index + 1}`}
                           className={`w-full h-auto rounded ${photoData.photoFilter}`}
                         />
-                        
-                        {index === photoData.photos.length - 1 && photoData.dateEnabled && (
-                          <div className="date-label">{dateText}</div>
-                        )}
                       </div>
                     ))}
+                    
+                    {/* Date label at the bottom */}
+                    {photoData.dateEnabled && (
+                      <div className="date-text">
+                        {dateText}
+                      </div>
+                    )}
+                    
+                    {/* Studio name label */}
+                    {showStudioName && (
+                      <div className="studio-name-text">
+                        {studioName}
+                      </div>
+                    )}
                     
                     {/* Clone the stickers for the preview */}
                     {photoData.stickers.map(sticker => (
@@ -473,6 +519,31 @@ const EditPage = () => {
                 onChange={e => setDateText(e.target.value)}
                 className="w-full p-2 border border-frame-secondary rounded"
                 placeholder="Enter date text"
+              />
+            )}
+          </div>
+          
+          {/* Studio Name Toggle */}
+          <div className="bg-white/70 backdrop-blur-sm p-4 rounded-xl shadow-md">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold text-frame-dark">Studio Name</h2>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  className="sr-only peer" 
+                  checked={showStudioName}
+                  onChange={e => handleStudioNameToggle(e.target.checked)}
+                />
+                <div className="w-11 h-6 bg-frame-secondary rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-frame-primary"></div>
+              </label>
+            </div>
+            {showStudioName && (
+              <input
+                type="text"
+                value={studioName}
+                onChange={e => setStudioName(e.target.value)}
+                className="w-full p-2 border border-frame-secondary rounded"
+                placeholder="Enter studio name"
               />
             )}
           </div>

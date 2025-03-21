@@ -31,6 +31,9 @@ document.addEventListener('DOMContentLoaded', function() {
   const previewModal = document.getElementById('preview-modal');
   const modalPhotoStrip = document.getElementById('modal-photo-strip');
   const closeModal = document.querySelector('.close-modal');
+  const loadingIndicator = document.getElementById('camera-loading');
+  const cameraErrorMessage = document.getElementById('camera-error');
+  const retryButton = document.getElementById('retry-camera');
 
   // State
   let currentPage = 'home';
@@ -41,10 +44,11 @@ document.addEventListener('DOMContentLoaded', function() {
   let photoCount = 3;
   let photosTaken = [];
   let currentFilter = 'no-filter';
-  let bgColor = '#FBF0DD';
+  let bgColor = '#FFFFFF';
   let dateEnabled = false;
   let dateText = new Date().toLocaleDateString();
   let appliedStickers = [];
+  let isCameraReady = false;
 
   // Initialize
   function init() {
@@ -56,6 +60,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Attach event listeners
     attachEventListeners();
+
+    // Add retry button functionality
+    if (retryButton) {
+      retryButton.addEventListener('click', initCamera);
+    }
   }
 
   // Navigate between pages
@@ -92,6 +101,16 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initialize camera
   async function initCamera() {
     try {
+      if (cameraErrorMessage) {
+        cameraErrorMessage.style.display = 'none';
+      }
+      
+      if (loadingIndicator) {
+        loadingIndicator.style.display = 'flex';
+      }
+      
+      isCameraReady = false;
+      
       // Always stop any existing stream first to prevent flickering
       if (stream) {
         stopCamera();
@@ -112,14 +131,43 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Make sure video is properly loaded before displaying
       videoEl.onloadedmetadata = () => {
-        videoEl.play();
+        videoEl.play().catch(err => {
+          console.error("Error starting video playback:", err);
+          showCameraError("Error starting camera. Please try again.");
+        });
+        
         // Apply mirroring based on state
         videoEl.classList.toggle('mirrored', isMirrored);
+        
+        isCameraReady = true;
+        
+        if (loadingIndicator) {
+          loadingIndicator.style.display = 'none';
+        }
+        
+        // Show video
+        videoEl.style.display = 'block';
       };
       
     } catch (error) {
       console.error('Error accessing camera:', error);
-      alert('Unable to access camera. Please ensure you have given permission.');
+      showCameraError('Unable to access camera. Please ensure you have given permission.');
+    }
+  }
+
+  function showCameraError(message) {
+    if (loadingIndicator) {
+      loadingIndicator.style.display = 'none';
+    }
+    
+    if (cameraErrorMessage) {
+      const errorTextEl = cameraErrorMessage.querySelector('p');
+      if (errorTextEl) {
+        errorTextEl.textContent = message;
+      }
+      cameraErrorMessage.style.display = 'flex';
+    } else {
+      alert(message);
     }
   }
 
@@ -134,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Take a photo
   function takePhoto() {
-    if (!stream) return null;
+    if (!stream || !isCameraReady) return null;
     
     const context = canvasEl.getContext('2d');
     
@@ -157,7 +205,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Start the photo session
   function startPhotoSession() {
-    if (isTakingPhotos || !stream) return;
+    if (isTakingPhotos || !stream || !isCameraReady) return;
     
     // Reset photos
     photosTaken = [];
@@ -315,11 +363,17 @@ document.addEventListener('DOMContentLoaded', function() {
       photoStripEl.appendChild(photoDiv);
     });
     
-    // Add date if enabled
+    // Add date if enabled - now at the bottom of the strip
     if (dateEnabled) {
-      dateOverlay.textContent = dateText;
-      dateOverlay.classList.remove('hidden');
-    } else {
+      const dateDiv = document.createElement('div');
+      dateDiv.className = 'date-text';
+      dateDiv.textContent = dateText;
+      photoStripEl.appendChild(dateDiv);
+      
+      if (dateOverlay) {
+        dateOverlay.classList.add('hidden');
+      }
+    } else if (dateOverlay) {
       dateOverlay.classList.add('hidden');
     }
     
@@ -459,6 +513,7 @@ document.addEventListener('DOMContentLoaded', function() {
         clientX = e.clientX;
         clientY = e.clientY;
       } else if (e.type === 'touchmove') {
+        e.preventDefault(); // Prevent scrolling when dragging
         clientX = e.touches[0].clientX;
         clientY = e.touches[0].clientY;
       }
@@ -504,35 +559,43 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Download the photo strip
   function downloadPhotoStrip() {
-    html2canvas(photoStripEl).then(canvas => {
+    html2canvas(photoStripEl, {
+      backgroundColor: bgColor,
+      allowTaint: true,
+      useCORS: true,
+      scale: 2 // Higher quality
+    }).then(canvas => {
       const link = document.createElement('a');
       link.download = 'photostrip.png';
       link.href = canvas.toDataURL('image/png');
       link.click();
+    }).catch(err => {
+      console.error("Error downloading photo strip:", err);
+      alert("Failed to download. Please try again.");
     });
   }
 
   // Attach all event listeners
   function attachEventListeners() {
     // Navigation
-    cameraOption.addEventListener('click', () => showPage('camera'));
-    uploadOption.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', (e) => handleFileUpload(e));
-    fileInputCamera.addEventListener('change', (e) => handleFileUpload(e, true));
-    continueBtn.addEventListener('click', () => showPage('edit'));
-    retakeBtn.addEventListener('click', () => {
+    if (cameraOption) cameraOption.addEventListener('click', () => showPage('camera'));
+    if (uploadOption) uploadOption.addEventListener('click', () => fileInput.click());
+    if (fileInput) fileInput.addEventListener('change', (e) => handleFileUpload(e));
+    if (fileInputCamera) fileInputCamera.addEventListener('change', (e) => handleFileUpload(e, true));
+    if (continueBtn) continueBtn.addEventListener('click', () => showPage('edit'));
+    if (retakeBtn) retakeBtn.addEventListener('click', () => {
       photosTaken = [];
       appliedStickers = [];
       showPage('camera');
     });
     
     // Camera controls
-    mirrorBtn.addEventListener('click', () => {
+    if (mirrorBtn) mirrorBtn.addEventListener('click', () => {
       isMirrored = !isMirrored;
-      videoEl.classList.toggle('mirrored', isMirrored);
+      if (videoEl) videoEl.classList.toggle('mirrored', isMirrored);
     });
     
-    takePhotoBtn.addEventListener('click', startPhotoSession);
+    if (takePhotoBtn) takePhotoBtn.addEventListener('click', startPhotoSession);
     
     // Photo count buttons
     countButtons.forEach(button => {
@@ -544,7 +607,7 @@ document.addEventListener('DOMContentLoaded', function() {
         button.classList.add('active');
         
         // Update display
-        photoCountDisplay.textContent = photoCount;
+        if (photoCountDisplay) photoCountDisplay.textContent = photoCount;
       });
     });
     
@@ -575,24 +638,28 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
     
-    dateToggle.addEventListener('change', () => {
-      dateEnabled = dateToggle.checked;
-      
-      if (dateEnabled) {
-        dateInputContainer.classList.remove('hidden');
-      } else {
-        dateInputContainer.classList.add('hidden');
-      }
-      
-      renderPhotoStrip();
-    });
-    
-    dateInput.addEventListener('input', () => {
-      dateText = dateInput.value;
-      if (dateEnabled) {
+    if (dateToggle) {
+      dateToggle.addEventListener('change', () => {
+        dateEnabled = dateToggle.checked;
+        
+        if (dateEnabled && dateInputContainer) {
+          dateInputContainer.classList.remove('hidden');
+        } else if (dateInputContainer) {
+          dateInputContainer.classList.add('hidden');
+        }
+        
         renderPhotoStrip();
-      }
-    });
+      });
+    }
+    
+    if (dateInput) {
+      dateInput.addEventListener('input', () => {
+        dateText = dateInput.value;
+        if (dateEnabled) {
+          renderPhotoStrip();
+        }
+      });
+    }
     
     stickers.forEach(sticker => {
       sticker.addEventListener('click', () => {
@@ -601,16 +668,18 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Preview and download
-    previewBtn.addEventListener('click', showPreview);
-    downloadBtn.addEventListener('click', downloadPhotoStrip);
+    if (previewBtn) previewBtn.addEventListener('click', showPreview);
+    if (downloadBtn) downloadBtn.addEventListener('click', downloadPhotoStrip);
     
     // Modal
-    closeModal.addEventListener('click', () => {
-      previewModal.style.display = 'none';
-    });
+    if (closeModal) {
+      closeModal.addEventListener('click', () => {
+        if (previewModal) previewModal.style.display = 'none';
+      });
+    }
     
     window.addEventListener('click', (e) => {
-      if (e.target === previewModal) {
+      if (previewModal && e.target === previewModal) {
         previewModal.style.display = 'none';
       }
     });

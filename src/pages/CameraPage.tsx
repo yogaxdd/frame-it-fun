@@ -1,3 +1,4 @@
+
 import { useContext, useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Camera, Repeat, Upload, Check } from "lucide-react";
@@ -17,9 +18,13 @@ const CameraPage = () => {
   const [photosTaken, setPhotosTaken] = useState<string[]>([]);
   const [photoCount, setPhotoCount] = useState(3);
   const [isMirrored, setIsMirrored] = useState(true);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   
   const initCamera = useCallback(async () => {
     try {
+      setCameraError(null);
+      
+      // Stop any existing stream to prevent memory leaks and flickering
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
@@ -37,20 +42,32 @@ const CameraPage = () => {
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
         videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play();
-          setIsCameraReady(true);
+          if (videoRef.current) {
+            videoRef.current.play().catch(err => {
+              console.error("Error playing video:", err);
+              setCameraError("Error starting camera. Please refresh and try again.");
+            });
+            setIsCameraReady(true);
+          }
         };
         setStream(mediaStream);
       }
     } catch (error) {
       console.error("Error accessing camera:", error);
+      setCameraError("Unable to access camera. Please ensure you have given permission.");
       toast.error("Unable to access camera. Please ensure you have given permission.");
     }
   }, [stream]);
   
   useEffect(() => {
-    initCamera();
+    // Initialize camera on component mount
+    const setupCamera = async () => {
+      await initCamera();
+    };
     
+    setupCamera();
+    
+    // Clean up when component unmounts
     return () => {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
@@ -209,9 +226,23 @@ const CameraPage = () => {
               style={{ display: isCameraReady ? 'block' : 'none' }}
             />
             
-            {!isCameraReady && (
+            {!isCameraReady && !cameraError && (
               <div className="absolute inset-0 flex items-center justify-center bg-black">
                 <p className="text-white">Loading camera...</p>
+              </div>
+            )}
+
+            {cameraError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black">
+                <div className="text-center text-white p-4">
+                  <p className="mb-2">{cameraError}</p>
+                  <button 
+                    onClick={initCamera}
+                    className="bg-frame-primary text-white px-4 py-2 rounded-md"
+                  >
+                    Retry
+                  </button>
+                </div>
               </div>
             )}
             

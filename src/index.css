@@ -178,6 +178,13 @@
   z-index: 100;
 }
 
+.countdown-number {
+  font-size: 8rem;
+  font-weight: bold;
+  color: white;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
 .sepia-filter {
   filter: sepia(100%);
 }
@@ -210,40 +217,48 @@
   width: 100%;
   max-width: 300px;
   margin: 0 auto;
-  background-color: theme('colors.frame.light');
-  padding: 1.5rem 1rem;
+  padding: 1rem;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  border-radius: 0.5rem;
+  overflow: hidden;
 }
 
-.photo-strip::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1rem;
-  background-color: theme('colors.frame.primary');
-}
-
+/* Remove the before and after pseudo-elements that were adding orange color */
+.photo-strip::before,
 .photo-strip::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 1rem;
-  background-color: theme('colors.frame.primary');
+  display: none;
 }
 
-.date-label {
-  position: absolute;
-  bottom: 1.25rem;
-  left: 1rem;
-  right: 1rem;
-  padding: 0.25rem 0.5rem;
-  background-color: rgba(255, 255, 255, 0.8);
-  font-size: 0.875rem;
+.date-text {
+  width: 100%;
   text-align: center;
+  background-color: white;
+  padding: 0.5rem;
+  margin-top: 0.5rem;
   border-radius: 0.25rem;
-  z-index: 2;
+  font-weight: 500;
+  color: #333;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.studio-name-text {
+  width: 100%;
+  text-align: center;
+  font-style: italic;
+  padding: 0.5rem;
+  margin-top: 0.25rem;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+/* Fix mobile camera display */
+video {
+  background-color: black;
+  object-fit: cover;
+}
+
+.photo-preview-item {
+  border-radius: 0.25rem;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
