@@ -1,0 +1,212 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FrameItNow - Create Beautiful Photo Memories</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header>
+      <div class="logo">
+        <i class="fa-solid fa-camera"></i>
+        <h1>Frame<span>It</span>Now</h1>
+      </div>
+      <nav>
+        <a href="#" class="active">Home</a>
+      </nav>
+    </header>
+
+    <!-- Main Content - Home Page -->
+    <div id="home-page" class="page active">
+      <main>
+        <div class="hero">
+          <h1>Create beautiful photo memories</h1>
+          <p>Capture moments, add fun effects, and share your creations instantly</p>
+        </div>
+
+        <div class="options">
+          <div class="option" id="camera-option">
+            <div class="shutter-button">
+              <div class="button-ring"></div>
+            </div>
+            <h2>Use Camera</h2>
+            <p>Capture photos using your device camera</p>
+          </div>
+
+          <div class="option" id="upload-option">
+            <div class="upload-icon">
+              <i class="fa-solid fa-upload"></i>
+            </div>
+            <h2>Upload Photos</h2>
+            <p>Select from your photo library</p>
+            <input type="file" id="file-input" accept="image/*" multiple class="hidden">
+          </div>
+        </div>
+
+        <div class="examples">
+          <div class="photo-frame rotate-left">
+            <img src="/lovable-uploads/1db4ac3a-d356-4a64-8b35-46b1fc6c9a02.png" alt="Example photo">
+          </div>
+          <div class="photo-frame">
+            <img src="/lovable-uploads/b5861b0a-4503-4c19-99d3-ccf51c8eb9ff.png" alt="Example photo">
+          </div>
+          <div class="photo-frame rotate-right">
+            <img src="/lovable-uploads/aaea95f2-8977-4c26-87dc-082edd144f94.png" alt="Example photo">
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Camera Page -->
+    <div id="camera-page" class="page">
+      <main>
+        <div class="camera-container">
+          <div class="camera-preview">
+            <video id="video" autoplay playsinline></video>
+            <div id="countdown" class="countdown hidden"></div>
+            <canvas id="canvas" class="hidden"></canvas>
+          </div>
+
+          <div class="camera-controls">
+            <button id="mirror-btn" class="secondary-btn">
+              <i class="fa-solid fa-repeat"></i>
+              <span>Mirror</span>
+            </button>
+            <button id="take-photo-btn" class="primary-btn">
+              <i class="fa-solid fa-camera"></i>
+              <span>Take Photos</span>
+            </button>
+            <label class="secondary-btn" for="file-input-camera">
+              <input type="file" id="file-input-camera" accept="image/*" multiple class="hidden">
+              <i class="fa-solid fa-upload"></i>
+              <span>Upload</span>
+            </label>
+          </div>
+
+          <div class="photo-count">
+            <span>Number of photos:</span>
+            <div class="count-options">
+              <button data-count="1">1</button>
+              <button data-count="2">2</button>
+              <button data-count="3" class="active">3</button>
+              <button data-count="4">4</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="preview-container">
+          <h2>Preview</h2>
+          <div id="photos-preview">
+            <div class="empty-state">
+              <i class="fa-solid fa-camera"></i>
+              <p>Photos you take will appear here</p>
+              <p class="small">Take <span id="photo-count-display">3</span> photos for your strip</p>
+            </div>
+          </div>
+          <button id="continue-btn" class="primary-btn hidden">
+            <i class="fa-solid fa-check"></i>
+            <span>Continue to Edit</span>
+          </button>
+        </div>
+      </main>
+    </div>
+
+    <!-- Edit Page -->
+    <div id="edit-page" class="page">
+      <main>
+        <div class="edit-container">
+          <div class="photo-strip-container">
+            <div id="photo-strip" class="photo-strip">
+              <!-- Photos will be added here dynamically -->
+            </div>
+
+            <div class="date-overlay" id="date-overlay">
+              <!-- Date will be added here if enabled -->
+            </div>
+
+            <div id="actions" class="actions">
+              <button id="preview-btn" class="secondary-btn">
+                <i class="fa-solid fa-eye"></i>
+                <span>Preview</span>
+              </button>
+              <button id="download-btn" class="primary-btn">
+                <i class="fa-solid fa-download"></i>
+                <span>Download</span>
+              </button>
+              <button id="retake-btn" class="secondary-btn">
+                <i class="fa-solid fa-camera"></i>
+                <span>Retake</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="edit-tools">
+            <div class="tool-section">
+              <h2>Stickers</h2>
+              <div class="stickers-container">
+                <img src="/lovable-uploads/104de36a-9ade-4bce-992c-1aab2c6d21dc.png" alt="Star" class="sticker" data-name="star">
+                <img src="/lovable-uploads/4cad127e-38be-4b3c-896f-83fe3972fdf6.png" alt="Heart" class="sticker" data-name="heart">
+              </div>
+            </div>
+
+            <div class="tool-section">
+              <h2>Background Color</h2>
+              <div class="color-options">
+                <div class="color-option" data-color="#000000" style="background-color: #000000;"></div>
+                <div class="color-option" data-color="#FFFFFF" style="background-color: #FFFFFF;"></div>
+                <div class="color-option active" data-color="#FBF0DD" style="background-color: #FBF0DD;"></div>
+                <div class="color-option" data-color="#E9A54D" style="background-color: #E9A54D;"></div>
+                <div class="color-option" data-color="#FFC0CB" style="background-color: #FFC0CB;"></div>
+              </div>
+            </div>
+
+            <div class="tool-section">
+              <h2>Filters</h2>
+              <div class="filter-options">
+                <button class="filter-button active" data-filter="no-filter">No Filter</button>
+                <button class="filter-button" data-filter="grayscale">Black & White</button>
+                <button class="filter-button" data-filter="sepia">Sepia</button>
+                <button class="filter-button" data-filter="warm">Warm</button>
+                <button class="filter-button" data-filter="cold">Cold</button>
+              </div>
+            </div>
+
+            <div class="tool-section">
+              <div class="date-toggle">
+                <h2>Date</h2>
+                <label class="switch">
+                  <input type="checkbox" id="date-toggle">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+              <div id="date-input-container" class="hidden">
+                <input type="text" id="date-input" value="" placeholder="Enter date text">
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Preview Modal -->
+    <div id="preview-modal" class="modal">
+      <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <div id="modal-photo-strip" class="photo-strip"></div>
+      </div>
+    </div>
+
+    <footer>
+      <p>&copy; 2023 FrameItNow. All rights reserved.</p>
+    </footer>
+  </div>
+
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
