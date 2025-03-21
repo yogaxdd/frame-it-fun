@@ -1,4 +1,3 @@
-
 import { useContext, useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Camera, Repeat, Upload, Check } from "lucide-react";
@@ -19,7 +18,6 @@ const CameraPage = () => {
   const [photoCount, setPhotoCount] = useState(3);
   const [isMirrored, setIsMirrored] = useState(true);
   
-  // Initialize the camera
   const initCamera = useCallback(async () => {
     try {
       const constraints = {
@@ -43,7 +41,6 @@ const CameraPage = () => {
     }
   }, []);
   
-  // Clean up the camera stream when component unmounts
   useEffect(() => {
     initCamera();
     
@@ -63,20 +60,16 @@ const CameraPage = () => {
     
     if (!context) return;
     
-    // Set canvas dimensions to match video
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     
-    // Apply mirroring if enabled
     if (isMirrored) {
       context.translate(canvas.width, 0);
       context.scale(-1, 1);
     }
     
-    // Draw video frame to canvas
     context.drawImage(video, 0, 0);
     
-    // Convert canvas to data URL
     const photoDataUrl = canvas.toDataURL('image/jpeg');
     
     return photoDataUrl;
@@ -89,12 +82,10 @@ const CameraPage = () => {
     setIsTakingPhoto(true);
     setCountDown(3);
     
-    // Start countdown
     const countdownInterval = setInterval(() => {
       setCountDown(prev => {
         if (prev <= 1) {
           clearInterval(countdownInterval);
-          // Take photo when countdown reaches 0
           const photoDataUrl = takePhoto();
           if (photoDataUrl) {
             setPhotosTaken(prev => [...prev, photoDataUrl]);
@@ -107,19 +98,15 @@ const CameraPage = () => {
     }, 1000);
   }, [isCameraReady, takePhoto]);
   
-  // Handle taking multiple photos
   useEffect(() => {
     if (photosTaken.length > 0 && photosTaken.length < photoCount && isTakingPhoto) {
-      // Delay before starting next photo countdown
       const delay = setTimeout(() => {
         setCountDown(3);
         
-        // Start countdown for next photo
         const countdownInterval = setInterval(() => {
           setCountDown(prev => {
             if (prev <= 1) {
               clearInterval(countdownInterval);
-              // Take photo when countdown reaches 0
               const photoDataUrl = takePhoto();
               if (photoDataUrl) {
                 setPhotosTaken(prev => [...prev, photoDataUrl]);
@@ -138,9 +125,7 @@ const CameraPage = () => {
     } else if (photosTaken.length === photoCount && isTakingPhoto) {
       setIsTakingPhoto(false);
       
-      // Session complete, ask user to proceed to editing
-      toast({
-        title: "Photo session complete!",
+      toast("Photo session complete!", {
         description: "Your photos are ready for editing.",
         action: {
           label: "Edit Now",
@@ -154,7 +139,6 @@ const CameraPage = () => {
     const files = e.target.files;
     if (!files || !photoContext) return;
     
-    // Accept only up to photo count images
     const photosArray = Array.from(files)
       .filter(file => file.type.startsWith('image/'))
       .slice(0, photoCount);
@@ -207,7 +191,6 @@ const CameraPage = () => {
       <Header />
       
       <main className="flex-1 flex flex-col md:flex-row p-4 md:p-6 gap-6 max-w-7xl mx-auto">
-        {/* Camera Preview */}
         <div className="md:w-3/5 flex flex-col gap-6">
           <div className="relative bg-black rounded-xl overflow-hidden aspect-video shadow-lg">
             <video 
@@ -226,11 +209,9 @@ const CameraPage = () => {
               </div>
             )}
             
-            {/* Canvas used for capturing photos (hidden) */}
             <canvas ref={canvasRef} className="hidden" />
           </div>
           
-          {/* Camera Controls */}
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap justify-center gap-4">
               <button
@@ -266,7 +247,6 @@ const CameraPage = () => {
               </label>
             </div>
             
-            {/* Photo Count Selection */}
             <div className="flex justify-center gap-2 mt-4">
               <span className="text-frame-dark">Number of photos:</span>
               {[1, 2, 3, 4].map(count => (
@@ -287,7 +267,6 @@ const CameraPage = () => {
           </div>
         </div>
         
-        {/* Photos Preview */}
         <div className="md:w-2/5">
           <div className="bg-white/70 backdrop-blur-sm rounded-xl shadow-md p-4 h-full">
             <h2 className="text-lg font-semibold mb-4 text-frame-dark">Preview</h2>
