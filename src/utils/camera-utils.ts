@@ -28,10 +28,55 @@ export const getCameraConstraints = (isMobile: boolean) => {
     video: {
       width: { ideal: isMobile ? 720 : 1280 },
       height: { ideal: isMobile ? 1280 : 720 },
-      facingMode: "user"
+      facingMode: "user",
+      // Adding these to improve stability
+      frameRate: { ideal: 30 },
+      aspectRatio: { ideal: isMobile ? 9/16 : 16/9 }
     },
     audio: false
   };
+};
+
+/**
+ * Safely starts the camera stream and returns it
+ */
+export const startCameraStream = async (isMobile: boolean): Promise<MediaStream | null> => {
+  try {
+    // First, make sure any previous streams are stopped
+    const constraints = getCameraConstraints(isMobile);
+    console.log("Requesting camera access with constraints:", constraints);
+    
+    // Force a new MediaStream to be created
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    
+    // Return the stream only if it has video tracks
+    if (stream && stream.getVideoTracks().length > 0) {
+      const videoTrack = stream.getVideoTracks()[0];
+      console.log("Camera accessed successfully. Settings:", videoTrack.getSettings());
+      return stream;
+    }
+    
+    throw new Error("No video tracks found in media stream");
+  } catch (error) {
+    console.error("Error starting camera:", error);
+    return null;
+  }
+};
+
+/**
+ * Safely stops all tracks in a media stream
+ */
+export const stopCameraStream = (stream: MediaStream | null): void => {
+  if (!stream) return;
+  
+  try {
+    stream.getTracks().forEach(track => {
+      track.stop();
+      console.log(`Track ${track.kind} stopped`);
+    });
+  } catch (error) {
+    console.error("Error stopping camera stream:", error);
+  }
 };
 
 /**

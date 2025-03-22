@@ -6,6 +6,12 @@ import Header from "@/components/Header";
 import { PhotoContext } from "@/App";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { 
+  checkCameraAvailability, 
+  getCameraErrorMessage, 
+  startCameraStream,
+  stopCameraStream
+} from "@/utils/camera-utils";
 
 const CameraPage = () => {
   const navigate = useNavigate();
@@ -20,88 +26,112 @@ const CameraPage = () => {
   const [photoCount, setPhotoCount] = useState(3);
   const [isMirrored, setIsMirrored] = useState(true);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
   const isMobile = useIsMobile();
+  const streamRef = useRef<MediaStream | null>(null);
   
+  // Initialize camera safely
   const initCamera = useCallback(async () => {
     try {
+      setIsInitializing(true);
       setCameraError(null);
       
-      // Stop any existing stream to prevent memory leaks and flickering
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+      // Check camera availability
+      const hasCameraAvailable = await checkCameraAvailability();
+      if (!hasCameraAvailable) {
+        setCameraError("No camera detected on your device.");
+        setIsInitializing(false);
+        return;
       }
       
-      // Set appropriate constraints based on device
-      const constraints = {
-        video: {
-          width: { ideal: isMobile ? 720 : 1280 },
-          height: { ideal: isMobile ? 1280 : 720 },
-          facingMode: "user"
-        },
-        audio: false
-      };
+      // Stop any existing stream
+      if (streamRef.current) {
+        stopCameraStream(streamRef.current);
+        streamRef.current = null;
+      }
       
-      console.log("Requesting camera with constraints:", constraints);
+      // Get a new camera stream
+      const newStream = await startCameraStream(isMobile);
       
-      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log("Camera access granted:", mediaStream.getVideoTracks().length > 0);
+      if (!newStream) {
+        setCameraError("Failed to start camera. Please try again.");
+        setIsInitializing(false);
+        return;
+      }
       
+      // Save the stream to state and ref
+      setStream(newStream);
+      streamRef.current = newStream;
+      
+      // Connect stream to video element
       if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
+        videoRef.current.srcObject = newStream;
         
-        // Make sure we're actually getting video data
-        const videoTrack = mediaStream.getVideoTracks()[0];
-        if (!videoTrack) {
-          throw new Error("No video track found in media stream");
-        }
-        
-        console.log("Video track settings:", videoTrack.getSettings());
-        
+        // Wait for video to be ready
         videoRef.current.onloadedmetadata = () => {
           if (videoRef.current) {
             videoRef.current.play()
               .then(() => {
                 console.log("Video playback started successfully");
                 setIsCameraReady(true);
+                setIsInitializing(false);
               })
               .catch(err => {
                 console.error("Error playing video:", err);
-                setCameraError("Error starting camera. Please refresh and try again.");
+                setCameraError("Error starting camera playback. Please refresh and try again.");
+                setIsInitializing(false);
               });
           }
         };
-        
-        setStream(mediaStream);
       }
     } catch (error) {
       console.error("Error accessing camera:", error);
-      if (error instanceof DOMException && error.name === "NotAllowedError") {
-        setCameraError("Camera access denied. Please allow camera access in your browser settings.");
-      } else if (error instanceof DOMException && error.name === "NotFoundError") {
-        setCameraError("No camera found. Please ensure your device has a working camera.");
-      } else {
-        setCameraError("Unable to access camera. Please ensure you have given permission.");
-      }
-      toast.error("Unable to access camera. Please ensure you have given permission.");
+      setCameraError(getCameraErrorMessage(error));
+      setIsInitializing(false);
+      toast.error("Camera error. Please check permissions and try again.");
     }
-  }, [stream, isMobile]);
+  }, [isMobile]);
   
   useEffect(() => {
-    // Initialize camera on component mount
     const setupCamera = async () => {
-      // Add a small delay to make sure the component is fully mounted
+      // Add some delay to ensure DOM is fully rendered
       setTimeout(() => {
         initCamera();
-      }, 500);
+      }, 800);
     };
     
     setupCamera();
     
     // Clean up when component unmounts
     return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+      if (streamRef.current) {
+        stopCameraStream(streamRef.current);
+        streamRef.current = null;
       }
+    };
+  }, [initCamera]);
+  
+  // Handle window visibility changes to prevent camera freezing
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        console.log("Tab is visible again, reinitializing camera");
+        // Small delay before reinitializing
+        setTimeout(() => {
+          initCamera();
+        }, 500);
+      } else {
+        console.log("Tab is hidden, stopping camera");
+        if (streamRef.current) {
+          stopCameraStream(streamRef.current);
+        }
+      }
+    };
+    
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [initCamera]);
   
@@ -124,7 +154,7 @@ const CameraPage = () => {
     
     context.drawImage(video, 0, 0);
     
-    const photoDataUrl = canvas.toDataURL('image/jpeg');
+    const photoDataUrl = canvas.toDataURL('image/jpeg', 0.9);  // Better quality
     
     return photoDataUrl;
   }, [isCameraReady, isMirrored]);
@@ -248,7 +278,7 @@ const CameraPage = () => {
         <div className="md:w-3/5 flex flex-col gap-6">
           <div className="relative bg-black rounded-xl overflow-hidden aspect-video shadow-lg">
             {/* Show loading state before camera is initialized */}
-            {!isCameraReady && !cameraError && (
+            {isInitializing && (
               <div className="absolute inset-0 flex items-center justify-center bg-black">
                 <div className="text-center text-white">
                   <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white mx-auto mb-2"></div>
@@ -268,7 +298,7 @@ const CameraPage = () => {
             />
             
             {/* Show error message if camera initialization fails */}
-            {cameraError && (
+            {cameraError && !isInitializing && (
               <div className="absolute inset-0 flex items-center justify-center bg-black">
                 <div className="text-center text-white p-4">
                   <p className="mb-4">{cameraError}</p>
