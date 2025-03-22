@@ -1,5 +1,4 @@
-
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Camera, Upload } from "lucide-react";
 import Header from "@/components/Header";
 import { useContext } from "react";
@@ -8,6 +7,7 @@ import { toast } from "sonner";
 
 const Index = () => {
   const photoContext = useContext(PhotoContext);
+  const navigate = useNavigate();
   
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -37,7 +37,7 @@ const Index = () => {
         photos: photos
       });
       toast.success("Photos uploaded successfully!");
-      window.location.href = "/edit";
+      navigate("/edit");
     });
   };
   
