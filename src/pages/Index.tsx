@@ -1,13 +1,15 @@
+
 import { Link, useNavigate } from "react-router-dom";
-import { Camera, Upload } from "lucide-react";
+import { Camera, Upload, Image as ImageIcon, Edit } from "lucide-react";
 import Header from "@/components/Header";
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import { PhotoContext } from "@/App";
 import { toast } from "sonner";
 
 const Index = () => {
   const photoContext = useContext(PhotoContext);
   const navigate = useNavigate();
+  const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
   
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -19,7 +21,8 @@ const Index = () => {
       return;
     }
     
-    const photosToProcess = imageFiles.slice(0, 3); // Limit to 3 photos
+    // No limit on photos to process
+    const photosToProcess = imageFiles;
     
     Promise.all(photosToProcess.map(file => {
       return new Promise<string>((resolve) => {
@@ -32,13 +35,36 @@ const Index = () => {
         reader.readAsDataURL(file);
       });
     })).then(photos => {
+      const newPhotos = [...uploadedPhotos, ...photos];
+      setUploadedPhotos(newPhotos);
+      
+      // Update the context with the new photos
       photoContext.setPhotoData({
         ...photoContext.photoData,
-        photos: photos
+        photos: newPhotos
       });
-      toast.success("Photos uploaded successfully!");
-      navigate("/edit");
+      
+      toast.success(`${photos.length} photo${photos.length > 1 ? 's' : ''} uploaded successfully!`);
     });
+  };
+  
+  const handleClearPhotos = () => {
+    setUploadedPhotos([]);
+    if (photoContext) {
+      photoContext.setPhotoData({
+        ...photoContext.photoData,
+        photos: []
+      });
+    }
+    toast.info("Photos cleared");
+  };
+  
+  const handleProceedToEdit = () => {
+    if (uploadedPhotos.length === 0) {
+      toast.error("Please upload at least one photo before proceeding");
+      return;
+    }
+    navigate("/edit");
   };
   
   return (
@@ -55,45 +81,82 @@ const Index = () => {
           </p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-2xl animate-fade-in" style={{ animationDelay: "0.1s" }}>
-          <Link
-            to="/camera"
-            className="aspect-square flex flex-col items-center justify-center p-8 bg-white bg-opacity-50 backdrop-blur-sm rounded-xl border border-frame-primary/30 shadow-lg transition-transform hover:scale-[1.02] group"
-          >
-            <div className="w-24 h-24 mb-6 relative">
-              <div className="shutter-button">
-                <div className="button-ring"></div>
+        {uploadedPhotos.length > 0 ? (
+          <div className="w-full max-w-3xl animate-fade-in">
+            <div className="bg-white/70 backdrop-blur-sm p-4 rounded-xl shadow-md mb-4">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-frame-dark">Uploaded Photos ({uploadedPhotos.length})</h2>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={handleClearPhotos}
+                    className="secondary-action-button"
+                  >
+                    Clear All
+                  </button>
+                  <button 
+                    onClick={handleProceedToEdit}
+                    className="main-action-button"
+                  >
+                    <Edit size={18} />
+                    <span>Edit Photos</span>
+                  </button>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {uploadedPhotos.map((photo, index) => (
+                  <div key={index} className="aspect-square relative rounded-lg overflow-hidden border border-frame-secondary">
+                    <img 
+                      src={photo} 
+                      alt={`Uploaded photo ${index + 1}`} 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
               </div>
             </div>
-            <h2 className="text-2xl font-semibold text-frame-dark mb-2 group-hover:text-frame-primary transition-colors">
-              Use Camera
-            </h2>
-            <p className="text-muted-foreground text-center">
-              Capture photos using your device camera
-            </p>
-          </Link>
-          
-          <label
-            className="aspect-square flex flex-col items-center justify-center p-8 bg-white bg-opacity-50 backdrop-blur-sm rounded-xl border border-frame-primary/30 shadow-lg cursor-pointer transition-transform hover:scale-[1.02] group"
-          >
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={handleFileUpload}
-            />
-            <div className="w-24 h-24 mb-6 flex items-center justify-center rounded-full bg-frame-secondary text-frame-primary group-hover:bg-frame-primary group-hover:text-white transition-colors">
-              <Upload size={48} />
-            </div>
-            <h2 className="text-2xl font-semibold text-frame-dark mb-2 group-hover:text-frame-primary transition-colors">
-              Upload Photos
-            </h2>
-            <p className="text-muted-foreground text-center">
-              Select from your photo library
-            </p>
-          </label>
-        </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-2xl animate-fade-in" style={{ animationDelay: "0.1s" }}>
+            <Link
+              to="/camera"
+              className="aspect-square flex flex-col items-center justify-center p-8 bg-white bg-opacity-50 backdrop-blur-sm rounded-xl border border-frame-primary/30 shadow-lg transition-transform hover:scale-[1.02] group"
+            >
+              <div className="w-24 h-24 mb-6 relative">
+                <div className="shutter-button">
+                  <div className="button-ring"></div>
+                </div>
+              </div>
+              <h2 className="text-2xl font-semibold text-frame-dark mb-2 group-hover:text-frame-primary transition-colors">
+                Use Camera
+              </h2>
+              <p className="text-muted-foreground text-center">
+                Capture photos using your device camera
+              </p>
+            </Link>
+            
+            <label
+              className="aspect-square flex flex-col items-center justify-center p-8 bg-white bg-opacity-50 backdrop-blur-sm rounded-xl border border-frame-primary/30 shadow-lg cursor-pointer transition-transform hover:scale-[1.02] group"
+            >
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+              <div className="w-24 h-24 mb-6 flex items-center justify-center rounded-full bg-frame-secondary text-frame-primary group-hover:bg-frame-primary group-hover:text-white transition-colors">
+                <Upload size={48} />
+              </div>
+              <h2 className="text-2xl font-semibold text-frame-dark mb-2 group-hover:text-frame-primary transition-colors">
+                Upload Photos
+              </h2>
+              <p className="text-muted-foreground text-center">
+                Select from your photo library
+              </p>
+            </label>
+          </div>
+        )}
         
         <div className="flex flex-wrap items-center justify-center gap-6 mt-8 animate-fade-in" style={{ animationDelay: "0.2s" }}>
           <div className="relative w-60 h-72 rotate-[-6deg] photo-frame">
