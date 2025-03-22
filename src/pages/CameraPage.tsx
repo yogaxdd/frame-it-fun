@@ -5,6 +5,7 @@ import { Camera, Repeat, Upload, Check } from "lucide-react";
 import Header from "@/components/Header";
 import { PhotoContext } from "@/App";
 import { toast } from "sonner";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const CameraPage = () => {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ const CameraPage = () => {
   const [photoCount, setPhotoCount] = useState(3);
   const [isMirrored, setIsMirrored] = useState(true);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const isMobile = useIsMobile();
   
   const initCamera = useCallback(async () => {
     try {
@@ -29,40 +31,68 @@ const CameraPage = () => {
         stream.getTracks().forEach(track => track.stop());
       }
       
+      // Set appropriate constraints based on device
       const constraints = {
         video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { ideal: isMobile ? 720 : 1280 },
+          height: { ideal: isMobile ? 1280 : 720 },
           facingMode: "user"
-        }
+        },
+        audio: false
       };
       
+      console.log("Requesting camera with constraints:", constraints);
+      
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log("Camera access granted:", mediaStream.getVideoTracks().length > 0);
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        
+        // Make sure we're actually getting video data
+        const videoTrack = mediaStream.getVideoTracks()[0];
+        if (!videoTrack) {
+          throw new Error("No video track found in media stream");
+        }
+        
+        console.log("Video track settings:", videoTrack.getSettings());
+        
         videoRef.current.onloadedmetadata = () => {
           if (videoRef.current) {
-            videoRef.current.play().catch(err => {
-              console.error("Error playing video:", err);
-              setCameraError("Error starting camera. Please refresh and try again.");
-            });
-            setIsCameraReady(true);
+            videoRef.current.play()
+              .then(() => {
+                console.log("Video playback started successfully");
+                setIsCameraReady(true);
+              })
+              .catch(err => {
+                console.error("Error playing video:", err);
+                setCameraError("Error starting camera. Please refresh and try again.");
+              });
           }
         };
+        
         setStream(mediaStream);
       }
     } catch (error) {
       console.error("Error accessing camera:", error);
-      setCameraError("Unable to access camera. Please ensure you have given permission.");
+      if (error instanceof DOMException && error.name === "NotAllowedError") {
+        setCameraError("Camera access denied. Please allow camera access in your browser settings.");
+      } else if (error instanceof DOMException && error.name === "NotFoundError") {
+        setCameraError("No camera found. Please ensure your device has a working camera.");
+      } else {
+        setCameraError("Unable to access camera. Please ensure you have given permission.");
+      }
       toast.error("Unable to access camera. Please ensure you have given permission.");
     }
-  }, [stream]);
+  }, [stream, isMobile]);
   
   useEffect(() => {
     // Initialize camera on component mount
     const setupCamera = async () => {
-      await initCamera();
+      // Add a small delay to make sure the component is fully mounted
+      setTimeout(() => {
+        initCamera();
+      }, 500);
     };
     
     setupCamera();
@@ -217,6 +247,17 @@ const CameraPage = () => {
       <main className="flex-1 flex flex-col md:flex-row p-4 md:p-6 gap-6 max-w-7xl mx-auto">
         <div className="md:w-3/5 flex flex-col gap-6">
           <div className="relative bg-black rounded-xl overflow-hidden aspect-video shadow-lg">
+            {/* Show loading state before camera is initialized */}
+            {!isCameraReady && !cameraError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black">
+                <div className="text-center text-white">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white mx-auto mb-2"></div>
+                  <p>Initializing camera...</p>
+                </div>
+              </div>
+            )}
+            
+            {/* Video element for camera feed */}
             <video 
               ref={videoRef}
               autoPlay
@@ -226,16 +267,11 @@ const CameraPage = () => {
               style={{ display: isCameraReady ? 'block' : 'none' }}
             />
             
-            {!isCameraReady && !cameraError && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black">
-                <p className="text-white">Loading camera...</p>
-              </div>
-            )}
-
+            {/* Show error message if camera initialization fails */}
             {cameraError && (
               <div className="absolute inset-0 flex items-center justify-center bg-black">
                 <div className="text-center text-white p-4">
-                  <p className="mb-2">{cameraError}</p>
+                  <p className="mb-4">{cameraError}</p>
                   <button 
                     onClick={initCamera}
                     className="bg-frame-primary text-white px-4 py-2 rounded-md"
@@ -246,9 +282,10 @@ const CameraPage = () => {
               </div>
             )}
             
+            {/* Countdown overlay */}
             {countDown > 0 && (
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="countdown-number animate-count-down">
+                <div className="text-8xl font-bold text-white bg-black/30 w-32 h-32 rounded-full flex items-center justify-center animate-pulse">
                   {countDown}
                 </div>
               </div>
@@ -271,7 +308,7 @@ const CameraPage = () => {
               <button
                 onClick={startPhotoSession}
                 disabled={isTakingPhoto || !isCameraReady}
-                className="main-action-button"
+                className={`main-action-button ${isTakingPhoto || !isCameraReady ? 'opacity-50 cursor-not-allowed' : ''}`}
                 aria-label="Take photos"
               >
                 <Camera size={20} />
