@@ -17,6 +17,7 @@ export type PhotoData = {
   dateEnabled: boolean;
   stickers: {id: string, image: string, x: number, y: number, scale: number}[];
   backgroundColor: string;
+  studioNameEnabled?: boolean;
 };
 
 type PhotoContextType = {

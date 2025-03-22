@@ -1,4 +1,3 @@
-
 import { useContext, useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -15,9 +14,6 @@ import { PhotoContext } from "@/App";
 import { stickers } from "@/data/stickers";
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
-
-// Add html2canvas dependency
-<lov-add-dependency>html2canvas@latest</lov-add-dependency>
 
 // Sticker component
 const StickerElement = ({
@@ -298,7 +294,6 @@ const EditPage = () => {
     });
   };
   
-  // Background color options
   const backgroundColors = [
     { color: "#000000", label: "Black" },
     { color: "#FFFFFF", label: "White" },
@@ -307,7 +302,6 @@ const EditPage = () => {
     { color: "#F5F8FF", label: "Soft Blue" }
   ];
   
-  // Filter options
   const filters = [
     { id: "no-filter", name: "No Filter" },
     { id: "grayscale-filter", name: "Black & White" },
@@ -322,7 +316,6 @@ const EditPage = () => {
       <Header />
       
       <main className="flex-1 flex flex-col md:flex-row p-4 md:p-6 gap-6 max-w-7xl mx-auto">
-        {/* Photo Strip Preview */}
         <div className="md:w-1/2 lg:w-3/5">
           <div className="relative">
             <div
@@ -341,21 +334,18 @@ const EditPage = () => {
                 </div>
               ))}
               
-              {/* Date label at the bottom */}
               {photoData.dateEnabled && (
                 <div className="date-text">
                   {dateText}
                 </div>
               )}
               
-              {/* Studio name label */}
               {showStudioName && (
                 <div className="studio-name-text">
                   {studioName}
                 </div>
               )}
               
-              {/* Render stickers on top of photos */}
               {photoData.stickers.map(sticker => (
                 <StickerElement
                   key={sticker.id}
@@ -384,21 +374,18 @@ const EditPage = () => {
                       </div>
                     ))}
                     
-                    {/* Date label at the bottom */}
                     {photoData.dateEnabled && (
                       <div className="date-text">
                         {dateText}
                       </div>
                     )}
                     
-                    {/* Studio name label */}
                     {showStudioName && (
                       <div className="studio-name-text">
                         {studioName}
                       </div>
                     )}
                     
-                    {/* Clone the stickers for the preview */}
                     {photoData.stickers.map(sticker => (
                       <div
                         key={sticker.id}
@@ -448,9 +435,7 @@ const EditPage = () => {
           </div>
         </div>
         
-        {/* Edit Controls */}
         <div className="md:w-1/2 lg:w-2/5 space-y-6 animate-fade-in">
-          {/* Stickers */}
           <div className="bg-white/70 backdrop-blur-sm p-4 rounded-xl shadow-md">
             <h2 className="text-lg font-semibold mb-3 text-frame-dark">Stickers</h2>
             <div className="sticker-container">
@@ -466,7 +451,6 @@ const EditPage = () => {
             </div>
           </div>
           
-          {/* Background Color */}
           <div className="bg-white/70 backdrop-blur-sm p-4 rounded-xl shadow-md">
             <h2 className="text-lg font-semibold mb-3 text-frame-dark">Background Color</h2>
             <div className="flex flex-wrap gap-3">
@@ -482,7 +466,6 @@ const EditPage = () => {
             </div>
           </div>
           
-          {/* Filters */}
           <div className="bg-white/70 backdrop-blur-sm p-4 rounded-xl shadow-md">
             <h2 className="text-lg font-semibold mb-3 text-frame-dark">Filters</h2>
             <div className="flex flex-wrap gap-2">
@@ -498,7 +481,6 @@ const EditPage = () => {
             </div>
           </div>
           
-          {/* Date Toggle */}
           <div className="bg-white/70 backdrop-blur-sm p-4 rounded-xl shadow-md">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold text-frame-dark">Date</h2>
@@ -523,7 +505,6 @@ const EditPage = () => {
             )}
           </div>
           
-          {/* Studio Name Toggle */}
           <div className="bg-white/70 backdrop-blur-sm p-4 rounded-xl shadow-md">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold text-frame-dark">Studio Name</h2>
