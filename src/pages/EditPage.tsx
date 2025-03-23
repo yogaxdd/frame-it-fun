@@ -1,4 +1,3 @@
-
 import { useContext, useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -21,18 +20,21 @@ const StickerElement = ({
   sticker,
   onDelete,
   onUpdatePosition,
-  onUpdateScale
+  onUpdateScale,
+  isPreviewMode = false
 }: {
   sticker: { id: string; image: string; x: number; y: number; scale: number };
   onDelete: (id: string) => void;
   onUpdatePosition: (id: string, x: number, y: number) => void;
   onUpdateScale: (id: string, scale: number) => void;
+  isPreviewMode?: boolean;
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [showControls, setShowControls] = useState(false);
   
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (isPreviewMode) return;
     e.preventDefault(); // Prevent default action (download)
     e.stopPropagation();
     setIsDragging(true);
@@ -43,6 +45,7 @@ const StickerElement = ({
   };
   
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (isPreviewMode) return;
     e.stopPropagation();
     setIsDragging(true);
     const touch = e.touches[0];
@@ -112,6 +115,7 @@ const StickerElement = ({
   };
 
   const handleStickerClick = (e: React.MouseEvent) => {
+    if (isPreviewMode) return;
     e.preventDefault(); // Prevent default action (download)
     e.stopPropagation();
     setShowControls(!showControls);
@@ -124,9 +128,10 @@ const StickerElement = ({
         left: `${sticker.x}px`,
         top: `${sticker.y}px`,
         transform: `scale(${sticker.scale})`,
-        cursor: isDragging ? "grabbing" : "grab",
+        cursor: isPreviewMode ? "default" : (isDragging ? "grabbing" : "grab"),
         position: "absolute",
         zIndex: 10,
+        pointerEvents: isPreviewMode ? "none" : "auto",
       }}
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
@@ -139,10 +144,11 @@ const StickerElement = ({
         draggable="false"
       />
       
-      {showControls && (
+      {!isPreviewMode && showControls && (
         <div 
           className="absolute flex -top-8 left-1/2 transform -translate-x-1/2 bg-white rounded-full shadow-md p-1"
           onClick={e => e.stopPropagation()}
+          style={{ pointerEvents: "auto" }}
         >
           <button
             type="button"
@@ -184,6 +190,7 @@ const EditPage = () => {
   const [dateText, setDateText] = useState(new Date().toLocaleDateString());
   const [activeBackgroundColor, setActiveBackgroundColor] = useState("#FFFFFF");
   const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [studioName, setStudioName] = useState("Sinemarolas Studio");
   const [showStudioName, setShowStudioName] = useState(false);
   
@@ -277,21 +284,34 @@ const EditPage = () => {
     const container = document.getElementById('photo-strip');
     if (!container) return;
     
-    html2canvas(container, {
-      backgroundColor: activeBackgroundColor,
-      allowTaint: true,
-      useCORS: true,
-      scale: 2 // Higher quality
-    }).then(canvas => {
-      const link = document.createElement('a');
-      link.download = 'photo-strip.png';
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-      toast.success("Photo strip downloaded!");
-    }).catch(err => {
-      console.error("Error downloading photo strip:", err);
-      toast.error("Failed to download. Please try again.");
-    });
+    setIsDownloading(true);
+    
+    setTimeout(() => {
+      html2canvas(container, {
+        backgroundColor: activeBackgroundColor,
+        allowTaint: true,
+        useCORS: true,
+        scale: 2,
+        onclone: (documentClone) => {
+          const clonedContainer = documentClone.getElementById('photo-strip');
+          if (clonedContainer) {
+            const stickerControls = clonedContainer.querySelectorAll('.sticker-controls');
+            stickerControls.forEach(control => control.remove());
+          }
+        }
+      }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = 'photo-strip.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        toast.success("Photo strip downloaded!");
+        setIsDownloading(false);
+      }).catch(err => {
+        console.error("Error downloading photo strip:", err);
+        toast.error("Failed to download. Please try again.");
+        setIsDownloading(false);
+      });
+    }, 100);
   };
   
   const handleRetake = () => {
@@ -377,6 +397,7 @@ const EditPage = () => {
                   onDelete={deleteSticker}
                   onUpdatePosition={updateStickerPosition}
                   onUpdateScale={updateStickerScale}
+                  isPreviewMode={isDownloading}
                 />
               ))}
             </div>
@@ -442,17 +463,30 @@ const EditPage = () => {
           </div>
           
           <div className="flex flex-wrap justify-center gap-3 mt-6">
-            <button onClick={togglePreviewMode} className="secondary-action-button">
+            <button 
+              type="button"
+              onClick={togglePreviewMode} 
+              className="secondary-action-button"
+            >
               <Eye size={20} />
               <span>Preview</span>
             </button>
             
-            <button onClick={downloadPhotoStrip} className="main-action-button">
+            <button 
+              type="button"
+              onClick={downloadPhotoStrip} 
+              className="main-action-button"
+              disabled={isDownloading}
+            >
               <Download size={20} />
-              <span>Download</span>
+              <span>{isDownloading ? "Processing..." : "Download"}</span>
             </button>
             
-            <button onClick={handleRetake} className="secondary-action-button">
+            <button 
+              type="button"
+              onClick={handleRetake} 
+              className="secondary-action-button"
+            >
               <Camera size={20} />
               <span>Retake</span>
             </button>
@@ -470,6 +504,7 @@ const EditPage = () => {
                   alt={sticker.name}
                   className="sticker-item"
                   onClick={() => addSticker(sticker.image)}
+                  draggable="false"
                 />
               ))}
             </div>

@@ -184,7 +184,7 @@ const Index = () => {
         <div className="flex flex-wrap items-center justify-center gap-6 mt-8 animate-fade-in" style={{ animationDelay: "0.2s" }}>
           <div className="relative w-60 h-72 rotate-[-6deg] photo-frame">
             <img
-              src="/lovable-uploads/1db4ac3a-d356-4a64-8b35-46b1fc6c9a02.png"
+              src="/lovable-uploads/8c0ef93c-a6ad-4cf2-9d59-5d8eae9a9834.png"
               alt="Example photo"
               className="absolute inset-6 object-cover"
             />
