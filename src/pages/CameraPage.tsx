@@ -1,178 +1,123 @@
 
-import { useContext, useState, useRef, useCallback, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Camera, Repeat, Upload, Check } from "lucide-react";
+import { useContext, useEffect, useRef, useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { Camera, RotateCcw, CheckCheck, Upload } from "lucide-react";
 import Header from "@/components/Header";
+import { Button } from "@/components/ui/button";
 import { PhotoContext } from "@/App";
 import { toast } from "sonner";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { 
-  checkCameraAvailability, 
-  getCameraErrorMessage, 
-  startCameraStream,
-  stopCameraStream
-} from "@/utils/camera-utils";
+
+const photoCountOptions = [1, 2, 3, 4];
 
 const CameraPage = () => {
   const navigate = useNavigate();
   const photoContext = useContext(PhotoContext);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isMirrored, setIsMirrored] = useState(true);
+  const [isTakingPhotos, setIsTakingPhotos] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [photoCount, setPhotoCount] = useState(3);
+  const [photosTaken, setPhotosTaken] = useState<string[]>([]);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isCameraReady, setIsCameraReady] = useState(false);
-  const [isTakingPhoto, setIsTakingPhoto] = useState(false);
-  const [countDown, setCountDown] = useState(0);
-  const [photosTaken, setPhotosTaken] = useState<string[]>([]);
-  const [photoCount, setPhotoCount] = useState(3);
-  const [isMirrored, setIsMirrored] = useState(true);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [isInitializing, setIsInitializing] = useState(true);
-  const isMobile = useIsMobile();
-  const streamRef = useRef<MediaStream | null>(null);
   
-  // Initialize camera safely
-  const initCamera = useCallback(async () => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  useEffect(() => {
+    initCamera();
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+  
+  const initCamera = async () => {
     try {
-      setIsInitializing(true);
       setCameraError(null);
       
-      // Check camera availability
-      const hasCameraAvailable = await checkCameraAvailability();
-      if (!hasCameraAvailable) {
-        setCameraError("No camera detected on your device.");
-        setIsInitializing(false);
-        return;
-      }
-      
       // Stop any existing stream
-      if (streamRef.current) {
-        stopCameraStream(streamRef.current);
-        streamRef.current = null;
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
       }
       
-      // Get a new camera stream
-      const newStream = await startCameraStream(isMobile);
+      const constraints = {
+        video: {
+          facingMode: "user",
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      };
       
-      if (!newStream) {
-        setCameraError("Failed to start camera. Please try again.");
-        setIsInitializing(false);
-        return;
-      }
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      setStream(mediaStream);
       
-      // Save the stream to state and ref
-      setStream(newStream);
-      streamRef.current = newStream;
-      
-      // Connect stream to video element
       if (videoRef.current) {
-        videoRef.current.srcObject = newStream;
-        
-        // Wait for video to be ready
+        videoRef.current.srcObject = mediaStream;
         videoRef.current.onloadedmetadata = () => {
-          if (videoRef.current) {
-            videoRef.current.play()
-              .then(() => {
-                console.log("Video playback started successfully");
-                setIsCameraReady(true);
-                setIsInitializing(false);
-              })
-              .catch(err => {
-                console.error("Error playing video:", err);
-                setCameraError("Error starting camera playback. Please refresh and try again.");
-                setIsInitializing(false);
-              });
-          }
+          setIsCameraReady(true);
         };
       }
     } catch (error) {
       console.error("Error accessing camera:", error);
-      setCameraError(getCameraErrorMessage(error));
-      setIsInitializing(false);
-      toast.error("Camera error. Please check permissions and try again.");
+      setCameraError("Unable to access camera. Please ensure you've given permission or try a different browser.");
     }
-  }, [isMobile]);
+  };
   
-  useEffect(() => {
-    const setupCamera = async () => {
-      // Add some delay to ensure DOM is fully rendered
-      setTimeout(() => {
-        initCamera();
-      }, 800);
-    };
-    
-    setupCamera();
-    
-    // Clean up when component unmounts
-    return () => {
-      if (streamRef.current) {
-        stopCameraStream(streamRef.current);
-        streamRef.current = null;
-      }
-    };
-  }, [initCamera]);
-  
-  // Handle window visibility changes to prevent camera freezing
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        console.log("Tab is visible again, reinitializing camera");
-        // Small delay before reinitializing
-        setTimeout(() => {
-          initCamera();
-        }, 500);
-      } else {
-        console.log("Tab is hidden, stopping camera");
-        if (streamRef.current) {
-          stopCameraStream(streamRef.current);
-        }
-      }
-    };
-    
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [initCamera]);
-  
-  const takePhoto = useCallback(() => {
-    if (!isCameraReady || !canvasRef.current || !videoRef.current) return;
+  const takePhoto = () => {
+    if (!isCameraReady || !videoRef.current || !canvasRef.current) return null;
     
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
     
-    if (!context) return;
+    if (!context) return null;
     
+    // Set canvas dimensions to match video
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     
+    // Apply mirroring if enabled
     if (isMirrored) {
       context.translate(canvas.width, 0);
       context.scale(-1, 1);
     }
     
+    // Draw video frame to canvas
     context.drawImage(video, 0, 0);
     
-    const photoDataUrl = canvas.toDataURL('image/jpeg', 0.9);  // Better quality
-    
-    return photoDataUrl;
-  }, [isCameraReady, isMirrored]);
+    // Convert to data URL
+    return canvas.toDataURL('image/jpeg');
+  };
   
-  const startPhotoSession = useCallback(() => {
-    if (!isCameraReady) return;
+  const startPhotoSession = () => {
+    if (isTakingPhotos || !isCameraReady) return;
     
-    setPhotosTaken([]);
-    setIsTakingPhoto(true);
-    setCountDown(3);
+    setIsTakingPhotos(true);
+    setCountdown(3);
     
     const countdownInterval = setInterval(() => {
-      setCountDown(prev => {
+      setCountdown(prev => {
         if (prev <= 1) {
           clearInterval(countdownInterval);
+          
+          // Take photo
           const photoDataUrl = takePhoto();
           if (photoDataUrl) {
             setPhotosTaken(prev => [...prev, photoDataUrl]);
+            
+            // Check if we need to take more photos
+            if (photosTaken.length + 1 < photoCount) {
+              // Wait a moment before starting the next countdown
+              setTimeout(() => startNextPhoto(), 1000);
+            } else {
+              setIsTakingPhotos(false);
+            }
+          } else {
+            setIsTakingPhotos(false);
+            toast.error("Failed to take photo. Please try again.");
           }
           
           return 0;
@@ -180,59 +125,71 @@ const CameraPage = () => {
         return prev - 1;
       });
     }, 1000);
-  }, [isCameraReady, takePhoto]);
+  };
   
-  useEffect(() => {
-    if (photosTaken.length > 0 && photosTaken.length < photoCount && isTakingPhoto) {
-      const delay = setTimeout(() => {
-        setCountDown(3);
-        
-        const countdownInterval = setInterval(() => {
-          setCountDown(prev => {
-            if (prev <= 1) {
-              clearInterval(countdownInterval);
-              const photoDataUrl = takePhoto();
-              if (photoDataUrl) {
-                setPhotosTaken(prev => [...prev, photoDataUrl]);
-              }
-              
-              return 0;
+  const startNextPhoto = () => {
+    setCountdown(3);
+    
+    const countdownInterval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(countdownInterval);
+          
+          // Take photo
+          const photoDataUrl = takePhoto();
+          if (photoDataUrl) {
+            setPhotosTaken(prev => [...prev, photoDataUrl]);
+            
+            // Check if we need to take more photos
+            if (photosTaken.length + 1 < photoCount) {
+              // Wait a moment before starting the next countdown
+              setTimeout(() => startNextPhoto(), 1000);
+            } else {
+              setIsTakingPhotos(false);
             }
-            return prev - 1;
-          });
-        }, 1000);
-      }, 1000);
-      
-      return () => {
-        clearTimeout(delay);
-      };
-    } else if (photosTaken.length === photoCount && isTakingPhoto) {
-      setIsTakingPhoto(false);
-      
-      toast("Photo session complete!", {
-        description: "Your photos are ready for editing.",
-        action: {
-          label: "Edit Now",
-          onClick: () => proceedToEdit()
+          } else {
+            setIsTakingPhotos(false);
+            toast.error("Failed to take photo. Please try again.");
+          }
+          
+          return 0;
         }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+  
+  const handleContinueToEdit = () => {
+    if (photosTaken.length === 0) {
+      toast.error("Please take at least one photo before proceeding");
+      return;
+    }
+    
+    if (photoContext) {
+      photoContext.setPhotoData({
+        ...photoContext.photoData,
+        photos: photosTaken
       });
     }
-  }, [photosTaken, photoCount, isTakingPhoto, takePhoto]);
+    
+    navigate("/edit");
+  };
   
-  const uploadPhotos = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMirrorToggle = () => {
+    setIsMirrored(prev => !prev);
+  };
+  
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files || !photoContext) return;
+    if (!files || files.length === 0) return;
     
-    const photosArray = Array.from(files)
-      .filter(file => file.type.startsWith('image/'))
-      .slice(0, photoCount);
-    
-    if (photosArray.length === 0) {
+    const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+    if (imageFiles.length === 0) {
       toast.error("Please select valid image files");
       return;
     }
     
-    Promise.all(photosArray.map(file => {
+    Promise.all(imageFiles.map(file => {
       return new Promise<string>((resolve) => {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -242,177 +199,154 @@ const CameraPage = () => {
         };
         reader.readAsDataURL(file);
       });
-    })).then(uploadedPhotos => {
-      photoContext.setPhotoData({
-        ...photoContext.photoData,
-        photos: uploadedPhotos
-      });
+    })).then(photos => {
+      // Merge new photos with existing ones
+      setPhotosTaken(prev => [...prev, ...photos]);
       
-      toast.success("Photos uploaded successfully!");
-      navigate("/edit");
+      toast.success(`${photos.length} photo${photos.length > 1 ? 's' : ''} uploaded successfully!`);
+      
+      // Reset file input to allow uploading the same file again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     });
   };
   
-  const proceedToEdit = () => {
-    if (photoContext && photosTaken.length > 0) {
-      photoContext.setPhotoData({
-        ...photoContext.photoData,
-        photos: photosTaken
-      });
-      
-      navigate("/edit");
-    } else {
-      toast.error("No photos taken. Please capture some photos first.");
+  const triggerFileUpload = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
     }
   };
   
-  const toggleMirror = () => {
-    setIsMirrored(prev => !prev);
+  const handleRetake = () => {
+    setPhotosTaken([]);
   };
   
   return (
     <div className="min-h-screen flex flex-col bg-frame-background">
       <Header />
       
-      <main className="flex-1 flex flex-col md:flex-row p-4 md:p-6 gap-6 max-w-7xl mx-auto">
-        <div className="md:w-3/5 flex flex-col gap-6">
-          <div className="relative bg-black rounded-xl overflow-hidden aspect-video shadow-lg">
-            {/* Show loading state before camera is initialized */}
-            {isInitializing && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black">
-                <div className="text-center text-white">
-                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white mx-auto mb-2"></div>
-                  <p>Initializing camera...</p>
+      <main className="flex-1 flex flex-col md:flex-row p-4 gap-6 max-w-7xl mx-auto w-full">
+        {/* Camera section */}
+        <div className="md:w-2/3">
+          <div className="bg-white/70 backdrop-blur-sm p-4 rounded-xl shadow-md mb-4">
+            <h2 className="text-xl font-semibold text-frame-dark mb-4">Camera</h2>
+            
+            <div className="relative aspect-video bg-gray-900 rounded-lg overflow-hidden mb-4">
+              {cameraError ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-4">
+                  <p className="text-center mb-4">{cameraError}</p>
+                  <Button onClick={initCamera}>Retry</Button>
                 </div>
-              </div>
-            )}
-            
-            {/* Video element for camera feed */}
-            <video 
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className={`w-full h-full object-cover ${isMirrored ? 'scale-x-[-1]' : ''}`}
-              style={{ display: isCameraReady ? 'block' : 'none' }}
-            />
-            
-            {/* Show error message if camera initialization fails */}
-            {cameraError && !isInitializing && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black">
-                <div className="text-center text-white p-4">
-                  <p className="mb-4">{cameraError}</p>
-                  <button 
-                    onClick={initCamera}
-                    className="bg-frame-primary text-white px-4 py-2 rounded-md"
-                  >
-                    Retry
-                  </button>
+              ) : !isCameraReady ? (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
                 </div>
-              </div>
-            )}
-            
-            {/* Countdown overlay */}
-            {countDown > 0 && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-8xl font-bold text-white bg-black/30 w-32 h-32 rounded-full flex items-center justify-center animate-pulse">
-                  {countDown}
-                </div>
-              </div>
-            )}
-            
-            <canvas ref={canvasRef} className="hidden" />
-          </div>
-          
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap justify-center gap-4">
-              <button
-                onClick={toggleMirror}
-                className="secondary-action-button"
-                aria-label="Toggle mirror"
-              >
-                <Repeat size={20} />
-                <span>Mirror</span>
-              </button>
+              ) : null}
               
-              <button
-                onClick={startPhotoSession}
-                disabled={isTakingPhoto || !isCameraReady}
-                className={`main-action-button ${isTakingPhoto || !isCameraReady ? 'opacity-50 cursor-not-allowed' : ''}`}
-                aria-label="Take photos"
-              >
-                <Camera size={20} />
-                <span>Take Photos</span>
-              </button>
+              <video 
+                ref={videoRef}
+                autoPlay 
+                playsInline 
+                muted
+                className={`w-full h-full object-cover ${isMirrored ? 'scale-x-[-1]' : ''}`}
+              ></video>
               
-              <label className="secondary-action-button cursor-pointer">
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={uploadPhotos}
-                  disabled={isTakingPhoto}
-                />
-                <Upload size={20} />
-                <span>Upload</span>
-              </label>
+              {countdown > 0 && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-6xl font-bold text-white bg-black/50 rounded-full w-24 h-24 flex items-center justify-center">
+                    {countdown}
+                  </div>
+                </div>
+              )}
+              
+              <canvas ref={canvasRef} className="hidden"></canvas>
             </div>
             
-            <div className="flex justify-center gap-2 mt-4">
-              <span className="text-frame-dark">Number of photos:</span>
-              {[1, 2, 3, 4].map(count => (
-                <button
-                  key={count}
-                  onClick={() => setPhotoCount(count)}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    photoCount === count 
-                      ? 'bg-frame-primary text-white' 
-                      : 'bg-white text-frame-dark'
-                  }`}
-                  aria-label={`${count} photos`}
-                >
-                  {count}
-                </button>
-              ))}
+            <div className="flex flex-wrap gap-2 mb-4">
+              <Button onClick={handleMirrorToggle} variant="outline" disabled={isTakingPhotos}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Mirror
+              </Button>
+              <Button onClick={startPhotoSession} disabled={isTakingPhotos || !isCameraReady}>
+                <Camera className="mr-2 h-4 w-4" />
+                {isTakingPhotos ? 'Taking Photos...' : 'Take Photos'}
+              </Button>
+              <Button onClick={triggerFileUpload} variant="outline" disabled={isTakingPhotos}>
+                <Upload className="mr-2 h-4 w-4" />
+                Upload
+              </Button>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handleFileUpload}
+                ref={fileInputRef}
+              />
+            </div>
+            
+            <div className="mb-4">
+              <p className="mb-2 font-medium">Number of photos: {photoCount}</p>
+              <div className="flex gap-2 flex-wrap">
+                {photoCountOptions.map(count => (
+                  <Button
+                    key={count}
+                    variant={photoCount === count ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setPhotoCount(count)}
+                    disabled={isTakingPhotos}
+                  >
+                    {count}
+                  </Button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
         
-        <div className="md:w-2/5">
-          <div className="bg-white/70 backdrop-blur-sm rounded-xl shadow-md p-4 h-full">
-            <h2 className="text-lg font-semibold mb-4 text-frame-dark">Preview</h2>
-            
-            <div className="photo-preview-container">
-              {photosTaken.length > 0 ? (
-                <div className="flex flex-col gap-2">
-                  {photosTaken.map((photo, index) => (
-                    <div key={index} className="photo-preview-item">
-                      <img 
-                        src={photo}
-                        alt={`Preview ${index + 1}`}
-                        className="w-full h-auto rounded"
-                      />
-                    </div>
-                  ))}
-                  
-                  {photosTaken.length === photoCount && (
-                    <button 
-                      onClick={proceedToEdit}
-                      className="mt-4 main-action-button"
-                    >
-                      <Check size={20} />
-                      <span>Continue to Edit</span>
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                  <Camera size={48} className="mb-2 opacity-30" />
-                  <p>Photos you take will appear here</p>
-                  <p className="text-sm">Take {photoCount} photos for your strip</p>
-                </div>
+        {/* Preview section */}
+        <div className="md:w-1/3">
+          <div className="bg-white/70 backdrop-blur-sm p-4 rounded-xl shadow-md mb-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-frame-dark">Preview</h2>
+              {photosTaken.length > 0 && (
+                <Button variant="outline" size="sm" onClick={handleRetake}>
+                  Retake All
+                </Button>
               )}
+            </div>
+            
+            {photosTaken.length > 0 ? (
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                {photosTaken.map((photo, index) => (
+                  <div key={index} className="aspect-square rounded-lg overflow-hidden border border-frame-secondary">
+                    <img 
+                      src={photo} 
+                      alt={`Photo ${index + 1}`} 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="aspect-video flex flex-col items-center justify-center p-6 bg-gray-100 rounded-lg text-gray-500 mb-4">
+                <Camera size={48} className="mb-4 opacity-50" />
+                <p>Photos you take will appear here</p>
+                <p className="text-sm">Take or upload {photoCount} photo{photoCount > 1 ? 's' : ''}</p>
+              </div>
+            )}
+            
+            <div className="flex flex-col gap-2">
+              <Button onClick={handleContinueToEdit} disabled={photosTaken.length === 0}>
+                <CheckCheck className="mr-2 h-4 w-4" />
+                Continue to Edit
+              </Button>
+              <Link to="/" className="w-full">
+                <Button variant="outline" className="w-full">
+                  Cancel
+                </Button>
+              </Link>
             </div>
           </div>
         </div>

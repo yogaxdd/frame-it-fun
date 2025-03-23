@@ -96,9 +96,9 @@ const Index = () => {
         {uploadedPhotos.length > 0 ? (
           <div className="w-full max-w-3xl animate-fade-in">
             <div className="bg-white/70 backdrop-blur-sm p-4 rounded-xl shadow-md mb-4">
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
                 <h2 className="text-xl font-semibold text-frame-dark">Uploaded Photos ({uploadedPhotos.length})</h2>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <button 
                     type="button"
                     onClick={triggerFileUpload}

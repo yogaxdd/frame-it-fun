@@ -1,594 +1,472 @@
-import { useContext, useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { 
-  Camera, 
-  Download, 
-  Trash2, 
-  ZoomIn, 
-  ZoomOut,
-  MoveLeft,
-  Eye
-} from "lucide-react";
-import Header from "@/components/Header";
+
+import { useRef, useState, useContext, useEffect } from "react";
 import { PhotoContext } from "@/App";
-import { stickers } from "@/data/stickers";
-import { toast } from "sonner";
+import Header from "@/components/Header";
+import { Button } from "@/components/ui/button";
+import { Camera, Eye, Download, ChevronLeft } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import html2canvas from "html2canvas";
+import { toast } from "sonner";
 
-// Sticker component
-const StickerElement = ({
-  sticker,
-  onDelete,
-  onUpdatePosition,
-  onUpdateScale,
-  isPreviewMode = false
-}: {
-  sticker: { id: string; image: string; x: number; y: number; scale: number };
-  onDelete: (id: string) => void;
-  onUpdatePosition: (id: string, x: number, y: number) => void;
-  onUpdateScale: (id: string, scale: number) => void;
-  isPreviewMode?: boolean;
-}) => {
-  const [isDragging, setIsDragging] = useState(false);
-  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
-  const [showControls, setShowControls] = useState(false);
-  
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (isPreviewMode) return;
-    e.preventDefault(); // Prevent default action (download)
-    e.stopPropagation();
-    setIsDragging(true);
-    setStartPos({
-      x: e.clientX - sticker.x,
-      y: e.clientY - sticker.y
-    });
-  };
-  
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (isPreviewMode) return;
-    e.stopPropagation();
-    setIsDragging(true);
-    const touch = e.touches[0];
-    setStartPos({
-      x: touch.clientX - sticker.x,
-      y: touch.clientY - sticker.y
-    });
-  };
-  
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-      
-      onUpdatePosition(
-        sticker.id,
-        e.clientX - startPos.x,
-        e.clientY - startPos.y
-      );
-    };
-    
-    const handleTouchMove = (e: TouchEvent) => {
-      if (!isDragging) return;
-      
-      const touch = e.touches[0];
-      onUpdatePosition(
-        sticker.id,
-        touch.clientX - startPos.x,
-        touch.clientY - startPos.y
-      );
-    };
-    
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-    
-    if (isDragging) {
-      window.addEventListener("mousemove", handleMouseMove);
-      window.addEventListener("touchmove", handleTouchMove);
-      window.addEventListener("mouseup", handleMouseUp);
-      window.addEventListener("touchend", handleMouseUp);
-    }
-    
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("touchmove", handleTouchMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-      window.removeEventListener("touchend", handleMouseUp);
-    };
-  }, [isDragging, startPos, onUpdatePosition, sticker.id]);
-  
-  const handleZoomIn = (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent default action (download)
-    e.stopPropagation();
-    onUpdateScale(sticker.id, sticker.scale + 0.1);
-  };
-  
-  const handleZoomOut = (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent default action (download)
-    e.stopPropagation();
-    onUpdateScale(sticker.id, Math.max(0.2, sticker.scale - 0.1));
-  };
-  
-  const handleDelete = (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent default action (download)
-    e.stopPropagation();
-    onDelete(sticker.id);
-  };
+const filters = [
+  { id: "no-filter", name: "No Filter" },
+  { id: "grayscale", name: "Black & White" },
+  { id: "sepia", name: "Sepia" },
+  { id: "warm", name: "Warm" },
+  { id: "cold", name: "Cold" },
+];
 
-  const handleStickerClick = (e: React.MouseEvent) => {
-    if (isPreviewMode) return;
-    e.preventDefault(); // Prevent default action (download)
-    e.stopPropagation();
-    setShowControls(!showControls);
-  };
+const colors = [
+  { id: "black", value: "#000000" },
+  { id: "white", value: "#FFFFFF" },
+  { id: "cream", value: "#FBF0DD" },
+  { id: "orange", value: "#E9A54D" },
+  { id: "pink", value: "#FFC0CB" },
+];
 
-  return (
-    <div
-      className="draggable-sticker group"
-      style={{
-        left: `${sticker.x}px`,
-        top: `${sticker.y}px`,
-        transform: `scale(${sticker.scale})`,
-        cursor: isPreviewMode ? "default" : (isDragging ? "grabbing" : "grab"),
-        position: "absolute",
-        zIndex: 10,
-        pointerEvents: isPreviewMode ? "none" : "auto",
-      }}
-      onMouseDown={handleMouseDown}
-      onTouchStart={handleTouchStart}
-      onClick={handleStickerClick}
-    >
-      <img 
-        src={sticker.image} 
-        alt="sticker" 
-        style={{ width: "60px", height: "60px", pointerEvents: "none" }} 
-        draggable="false"
-      />
-      
-      {!isPreviewMode && showControls && (
-        <div 
-          className="absolute flex -top-8 left-1/2 transform -translate-x-1/2 bg-white rounded-full shadow-md p-1"
-          onClick={e => e.stopPropagation()}
-          style={{ pointerEvents: "auto" }}
-        >
-          <button
-            type="button"
-            onClick={handleZoomIn}
-            className="p-1 hover:bg-frame-secondary rounded-full"
-            title="Increase size"
-          >
-            <ZoomIn size={16} />
-          </button>
-          <button
-            type="button"
-            onClick={handleZoomOut}
-            className="p-1 hover:bg-frame-secondary rounded-full"
-            title="Decrease size"
-          >
-            <ZoomOut size={16} />
-          </button>
-          <button
-            type="button"
-            onClick={handleDelete}
-            className="p-1 hover:bg-red-100 text-red-500 rounded-full"
-            title="Remove sticker"
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
-      )}
-    </div>
-  );
-};
+// Imported from data/stickers or use direct URLs
+const stickers = [
+  { id: "heart", image: "https://raw.githubusercontent.com/yogaxdd/frame-it-fun/main/stickers/pink-heart_1fa77.png" },
+  { id: "star", image: "https://raw.githubusercontent.com/yogaxdd/frame-it-fun/main/stickers/star_2b50.png" },
+  { id: "ribbon", image: "https://raw.githubusercontent.com/yogaxdd/frame-it-fun/main/stickers/ribbon_1f380.png" },
+  { id: "whale", image: "https://raw.githubusercontent.com/yogaxdd/frame-it-fun/main/stickers/spouting-whale_1f433.png" },
+  { id: "lion", image: "https://raw.githubusercontent.com/yogaxdd/frame-it-fun/main/stickers/lion_1f981.png" },
+];
 
 const EditPage = () => {
-  const navigate = useNavigate();
   const photoContext = useContext(PhotoContext);
-  const photosContainerRef = useRef<HTMLDivElement>(null);
-  
-  const [activeFilter, setActiveFilter] = useState("no-filter");
-  const [showDateToggle, setShowDateToggle] = useState(false);
-  const [dateText, setDateText] = useState(new Date().toLocaleDateString());
-  const [activeBackgroundColor, setActiveBackgroundColor] = useState("#FFFFFF");
-  const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const navigate = useNavigate();
+  const photoStripRef = useRef<HTMLDivElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [studioName, setStudioName] = useState("Sinemarolas Studio");
-  const [showStudioName, setShowStudioName] = useState(false);
-  
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
+
+  // Check if we have photos, redirect to home if not
   useEffect(() => {
-    if (!photoContext || photoContext.photoData.photos.length === 0) {
-      toast.error("No photos to edit. Please take or upload photos first.");
+    if (!photoContext?.photoData.photos || photoContext.photoData.photos.length === 0) {
+      toast.error("No photos to edit. Please upload or take photos first");
       navigate("/");
     }
-  }, [photoContext, navigate]);
-  
-  if (!photoContext) {
-    return <div>Loading...</div>;
-  }
-  
+  }, [photoContext?.photoData.photos, navigate]);
+
+  if (!photoContext) return null;
+
   const { photoData, setPhotoData } = photoContext;
-  
-  const addSticker = (stickerImage: string) => {
-    const container = photosContainerRef.current;
-    if (!container) return;
+
+  const handleFilterChange = (filterId: string) => {
+    setPhotoData({
+      ...photoData,
+      photoFilter: filterId,
+    });
+  };
+
+  const handleBgColorChange = (color: string) => {
+    setPhotoData({
+      ...photoData,
+      backgroundColor: color,
+    });
+  };
+
+  const handleDateToggle = () => {
+    setPhotoData({
+      ...photoData,
+      dateEnabled: !photoData.dateEnabled,
+    });
+  };
+
+  const handleAddSticker = (stickerImage: string) => {
+    // Add sticker to the center of the photostrip
+    const stripRect = photoStripRef.current?.getBoundingClientRect();
+    if (!stripRect) return;
+
+    const x = stripRect.width / 2 - 30;
+    const y = stripRect.height / 2 - 30;
+
+    const newSticker = {
+      id: `sticker-${Date.now()}`,
+      image: stickerImage,
+      x,
+      y,
+      scale: 1,
+    };
+
+    setPhotoData({
+      ...photoData,
+      stickers: [...photoData.stickers, newSticker],
+    });
+  };
+
+  const handleStickerDrag = (index: number, x: number, y: number) => {
+    const newStickers = [...photoData.stickers];
+    newStickers[index] = { ...newStickers[index], x, y };
+    setPhotoData({
+      ...photoData,
+      stickers: newStickers,
+    });
+  };
+
+  const handleStickerScale = (index: number, scaleDelta: number) => {
+    const newStickers = [...photoData.stickers];
+    const newScale = Math.max(0.2, newStickers[index].scale + scaleDelta);
+    newStickers[index] = { ...newStickers[index], scale: newScale };
+    setPhotoData({
+      ...photoData,
+      stickers: newStickers,
+    });
+  };
+
+  const handleDeleteSticker = (index: number) => {
+    const newStickers = [...photoData.stickers];
+    newStickers.splice(index, 1);
+    setPhotoData({
+      ...photoData,
+      stickers: newStickers,
+    });
+  };
+
+  const showPreview = () => {
+    setIsPreviewMode(true);
+  };
+
+  const closePreview = () => {
+    setIsPreviewMode(false);
+  };
+
+  const downloadPhotoStrip = async () => {
+    if (!photoStripRef.current) return;
     
-    const rect = container.getBoundingClientRect();
-    const id = `sticker-${Date.now()}`;
-    
-    setPhotoData({
-      ...photoData,
-      stickers: [
-        ...photoData.stickers,
-        {
-          id,
-          image: stickerImage,
-          x: rect.width / 2 - 30,
-          y: rect.height / 2 - 30,
-          scale: 1
-        }
-      ]
-    });
-    
-    toast.success("Sticker added! Drag to position it");
-  };
-  
-  const updateStickerPosition = (id: string, x: number, y: number) => {
-    setPhotoData({
-      ...photoData,
-      stickers: photoData.stickers.map(sticker => 
-        sticker.id === id ? { ...sticker, x, y } : sticker
-      )
-    });
-  };
-  
-  const updateStickerScale = (id: string, scale: number) => {
-    setPhotoData({
-      ...photoData,
-      stickers: photoData.stickers.map(sticker => 
-        sticker.id === id ? { ...sticker, scale } : sticker
-      )
-    });
-  };
-  
-  const deleteSticker = (id: string) => {
-    setPhotoData({
-      ...photoData,
-      stickers: photoData.stickers.filter(sticker => sticker.id !== id)
-    });
-  };
-  
-  const handleFilterChange = (filter: string) => {
-    setActiveFilter(filter);
-    setPhotoData({
-      ...photoData,
-      photoFilter: filter
-    });
-  };
-  
-  const handleBackgroundColorChange = (color: string) => {
-    setActiveBackgroundColor(color);
-    setPhotoData({
-      ...photoData,
-      backgroundColor: color
-    });
-  };
-  
-  const handleDateToggle = (enabled: boolean) => {
-    setShowDateToggle(enabled);
-    setPhotoData({
-      ...photoData,
-      dateEnabled: enabled
-    });
-  };
-  
-  const downloadPhotoStrip = () => {
-    const container = document.getElementById('photo-strip');
-    if (!container) return;
-    
-    setIsDownloading(true);
-    
-    setTimeout(() => {
-      html2canvas(container, {
-        backgroundColor: activeBackgroundColor,
+    try {
+      setIsDownloading(true);
+      setIsPreviewMode(true); // Hide controls during download
+      
+      // Wait a moment for the DOM to update
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const canvas = await html2canvas(photoStripRef.current, {
+        backgroundColor: photoData.backgroundColor,
         allowTaint: true,
         useCORS: true,
-        scale: 2,
-        onclone: (documentClone) => {
-          const clonedContainer = documentClone.getElementById('photo-strip');
-          if (clonedContainer) {
-            const stickerControls = clonedContainer.querySelectorAll('.sticker-controls');
-            stickerControls.forEach(control => control.remove());
-          }
+        scale: 2, // Higher quality
+        onclone: (clonedDoc) => {
+          // Find all control elements in the clone and hide them
+          const controls = clonedDoc.querySelectorAll('.sticker-controls');
+          controls.forEach(el => {
+            (el as HTMLElement).style.display = 'none';
+          });
         }
-      }).then(canvas => {
-        const link = document.createElement('a');
-        link.download = 'photo-strip.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-        toast.success("Photo strip downloaded!");
-        setIsDownloading(false);
-      }).catch(err => {
-        console.error("Error downloading photo strip:", err);
-        toast.error("Failed to download. Please try again.");
-        setIsDownloading(false);
       });
-    }, 100);
+      
+      const link = document.createElement('a');
+      link.download = 'photostrip.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      
+      toast.success("Photo strip downloaded successfully!");
+    } catch (err) {
+      console.error("Error downloading photo strip:", err);
+      toast.error("Failed to download. Please try again.");
+    } finally {
+      setIsDownloading(false);
+      setIsPreviewMode(false); // Restore controls after download
+    }
   };
-  
-  const handleRetake = () => {
-    setPhotoData({
-      ...photoData,
-      photos: [],
-      stickers: [],
-      photoFilter: "no-filter",
-      dateEnabled: false,
-      backgroundColor: "#FFFFFF"
-    });
-    navigate("/camera");
-  };
-  
-  const togglePreviewMode = () => {
-    setIsPreviewMode(!isPreviewMode);
-  };
-  
-  const handleStudioNameToggle = (enabled: boolean) => {
-    setShowStudioName(enabled);
-    setPhotoData({
-      ...photoData,
-      studioNameEnabled: enabled
-    });
-  };
-  
-  const backgroundColors = [
-    { color: "#000000", label: "Black" },
-    { color: "#FFFFFF", label: "White" },
-    { color: "#FBF0DD", label: "Cream" },
-    { color: "#E9F0FB", label: "Light Blue" },
-    { color: "#F5F8FF", label: "Soft Blue" }
-  ];
-  
-  const filters = [
-    { id: "no-filter", name: "No Filter" },
-    { id: "grayscale-filter", name: "Black & White" },
-    { id: "sepia-filter", name: "Sepia" },
-    { id: "warm-filter", name: "Warm" },
-    { id: "cold-filter", name: "Cold" },
-    { id: "cool-filter", name: "Cool" }
-  ];
-  
+
   return (
-    <div className="min-h-screen flex flex-col bg-frame-background">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       <Header />
       
-      <main className="flex-1 flex flex-col md:flex-row p-4 md:p-6 gap-6 max-w-7xl mx-auto">
-        <div className="md:w-1/2 lg:w-3/5">
-          <div className="relative">
-            <div
-              ref={photosContainerRef}
-              id="photo-strip"
-              className="photo-strip mx-auto"
-              style={{ backgroundColor: activeBackgroundColor }}
+      <main className="flex-1 flex flex-col md:flex-row p-4 gap-6 max-w-7xl mx-auto w-full">
+        {/* Photo Strip */}
+        <div className="md:w-1/2 flex flex-col gap-4">
+          <div className="bg-white p-4 rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold mb-4">Preview</h2>
+            <div 
+              ref={photoStripRef} 
+              className="photo-strip-container relative mx-auto"
+              style={{ backgroundColor: photoData.backgroundColor, padding: "12px", maxWidth: "320px" }}
             >
               {photoData.photos.map((photo, index) => (
-                <div key={index} className="relative">
-                  <img
-                    src={photo}
-                    alt={`Photo ${index + 1}`}
-                    className={`w-full h-auto rounded ${photoData.photoFilter}`}
+                <div key={index} className="photo-item mb-3">
+                  <img 
+                    src={photo} 
+                    alt={`Photo ${index + 1}`} 
+                    className={`w-full object-cover ${photoData.photoFilter}`} 
+                    draggable="false"
                   />
                 </div>
               ))}
               
               {photoData.dateEnabled && (
-                <div className="date-text">
-                  {dateText}
+                <div className="text-center font-semibold py-2">
+                  {new Date().toLocaleDateString()}
                 </div>
               )}
               
-              {showStudioName && (
-                <div className="studio-name-text">
-                  {studioName}
-                </div>
-              )}
-              
-              {photoData.stickers.map(sticker => (
-                <StickerElement
+              {/* Stickers */}
+              {photoData.stickers.map((sticker, index) => (
+                <div
                   key={sticker.id}
-                  sticker={sticker}
-                  onDelete={deleteSticker}
-                  onUpdatePosition={updateStickerPosition}
-                  onUpdateScale={updateStickerScale}
-                  isPreviewMode={isDownloading}
-                />
-              ))}
-            </div>
-            
-            {isPreviewMode && (
-              <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={togglePreviewMode}>
-                <div className="relative max-w-sm mx-auto" onClick={e => e.stopPropagation()}>
-                  <div
-                    className="photo-strip"
-                    style={{ backgroundColor: activeBackgroundColor }}
-                  >
-                    {photoData.photos.map((photo, index) => (
-                      <div key={index} className="relative">
-                        <img
-                          src={photo}
-                          alt={`Photo ${index + 1}`}
-                          className={`w-full h-auto rounded ${photoData.photoFilter}`}
-                        />
-                      </div>
-                    ))}
+                  className="draggable-sticker absolute select-none cursor-move"
+                  style={{
+                    left: `${sticker.x}px`,
+                    top: `${sticker.y}px`,
+                    transform: `scale(${sticker.scale})`,
+                    touchAction: "none"
+                  }}
+                  onMouseDown={(e) => {
+                    if (isPreviewMode || isDownloading) return;
                     
-                    {photoData.dateEnabled && (
-                      <div className="date-text">
-                        {dateText}
-                      </div>
-                    )}
+                    const startX = e.clientX;
+                    const startY = e.clientY;
+                    const startLeft = sticker.x;
+                    const startTop = sticker.y;
                     
-                    {showStudioName && (
-                      <div className="studio-name-text">
-                        {studioName}
-                      </div>
-                    )}
+                    const handleMouseMove = (moveEvent: MouseEvent) => {
+                      const dx = moveEvent.clientX - startX;
+                      const dy = moveEvent.clientY - startY;
+                      handleStickerDrag(index, startLeft + dx, startTop + dy);
+                    };
                     
-                    {photoData.stickers.map(sticker => (
-                      <div
-                        key={sticker.id}
-                        className="draggable-sticker"
-                        style={{
-                          left: `${sticker.x}px`,
-                          top: `${sticker.y}px`,
-                          transform: `scale(${sticker.scale})`,
-                          pointerEvents: 'none'
+                    const handleMouseUp = () => {
+                      document.removeEventListener('mousemove', handleMouseMove);
+                      document.removeEventListener('mouseup', handleMouseUp);
+                    };
+                    
+                    document.addEventListener('mousemove', handleMouseMove);
+                    document.addEventListener('mouseup', handleMouseUp);
+                  }}
+                  onTouchStart={(e) => {
+                    if (isPreviewMode || isDownloading) return;
+                    
+                    const touch = e.touches[0];
+                    const startX = touch.clientX;
+                    const startY = touch.clientY;
+                    const startLeft = sticker.x;
+                    const startTop = sticker.y;
+                    
+                    const handleTouchMove = (moveEvent: TouchEvent) => {
+                      const touch = moveEvent.touches[0];
+                      const dx = touch.clientX - startX;
+                      const dy = touch.clientY - startY;
+                      handleStickerDrag(index, startLeft + dx, startTop + dy);
+                    };
+                    
+                    const handleTouchEnd = () => {
+                      document.removeEventListener('touchmove', handleTouchMove);
+                      document.removeEventListener('touchend', handleTouchEnd);
+                    };
+                    
+                    document.addEventListener('touchmove', handleTouchMove);
+                    document.addEventListener('touchend', handleTouchEnd);
+                  }}
+                >
+                  <img 
+                    src={sticker.image} 
+                    alt="Sticker" 
+                    className="w-16 h-16 pointer-events-none"
+                    draggable="false"
+                  />
+                  
+                  {!isPreviewMode && !isDownloading && (
+                    <div className="sticker-controls absolute -top-7 left-0 right-0 flex justify-center gap-1"
+                         style={{ pointerEvents: "auto" }}
+                         onClick={e => e.stopPropagation()}
+                    >
+                      <button 
+                        className="bg-white p-1 rounded-full shadow-md"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleStickerScale(index, 0.1);
                         }}
                       >
-                        <img 
-                          src={sticker.image} 
-                          alt="sticker" 
-                          style={{ width: "60px", height: "60px" }} 
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <button
-                    className="absolute top-4 right-4 p-2 bg-white/20 rounded-full text-white hover:bg-white/40 transition-colors"
-                    onClick={togglePreviewMode}
-                  >
-                    &times;
-                  </button>
+                        +
+                      </button>
+                      <button 
+                        className="bg-white p-1 rounded-full shadow-md"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleStickerScale(index, -0.1);
+                        }}
+                      >
+                        -
+                      </button>
+                      <button 
+                        className="bg-red-500 text-white p-1 rounded-full shadow-md"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleDeleteSticker(index);
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              ))}
+            </div>
           </div>
           
-          <div className="flex flex-wrap justify-center gap-3 mt-6">
-            <button 
-              type="button"
-              onClick={togglePreviewMode} 
-              className="secondary-action-button"
-            >
-              <Eye size={20} />
-              <span>Preview</span>
-            </button>
-            
-            <button 
-              type="button"
+          <div className="flex gap-2">
+            <Button onClick={showPreview} variant="outline" className="flex-1">
+              <Eye className="mr-2 h-4 w-4" />
+              Preview
+            </Button>
+            <Button 
               onClick={downloadPhotoStrip} 
-              className="main-action-button"
+              className="flex-1"
               disabled={isDownloading}
             >
-              <Download size={20} />
-              <span>{isDownloading ? "Processing..." : "Download"}</span>
-            </button>
-            
-            <button 
-              type="button"
-              onClick={handleRetake} 
-              className="secondary-action-button"
-            >
-              <Camera size={20} />
-              <span>Retake</span>
-            </button>
+              <Download className="mr-2 h-4 w-4" />
+              {isDownloading ? "Downloading..." : "Download"}
+            </Button>
+            <Link to="/" className="flex-1">
+              <Button variant="outline" className="w-full">
+                <ChevronLeft className="mr-2 h-4 w-4" />
+                Start Over
+              </Button>
+            </Link>
           </div>
         </div>
         
-        <div className="md:w-1/2 lg:w-2/5 space-y-6 animate-fade-in">
-          <div className="bg-white/70 backdrop-blur-sm p-4 rounded-xl shadow-md">
-            <h2 className="text-lg font-semibold mb-3 text-frame-dark">Stickers</h2>
-            <div className="sticker-container">
-              {stickers.map(sticker => (
-                <img
-                  key={sticker.id}
-                  src={sticker.image}
-                  alt={sticker.name}
-                  className="sticker-item"
-                  onClick={() => addSticker(sticker.image)}
-                  draggable="false"
-                />
-              ))}
-            </div>
-          </div>
-          
-          <div className="bg-white/70 backdrop-blur-sm p-4 rounded-xl shadow-md">
-            <h2 className="text-lg font-semibold mb-3 text-frame-dark">Background Color</h2>
-            <div className="flex flex-wrap gap-3">
-              {backgroundColors.map(({ color, label }) => (
-                <div 
-                  key={color} 
-                  className={`color-option ${activeBackgroundColor === color ? 'active' : ''}`}
-                  style={{ backgroundColor: color }}
-                  onClick={() => handleBackgroundColorChange(color)}
-                  title={label}
-                />
-              ))}
-            </div>
-          </div>
-          
-          <div className="bg-white/70 backdrop-blur-sm p-4 rounded-xl shadow-md">
-            <h2 className="text-lg font-semibold mb-3 text-frame-dark">Filters</h2>
-            <div className="flex flex-wrap gap-2">
-              {filters.map(filter => (
-                <button
+        {/* Edit Tools */}
+        <div className="md:w-1/2 space-y-4">
+          {/* Filters */}
+          <div className="bg-white p-4 rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold mb-4">Filters</h2>
+            <div className="grid grid-cols-3 gap-2">
+              {filters.map((filter) => (
+                <Button
                   key={filter.id}
-                  className={`filter-button ${activeFilter === filter.id ? 'active' : ''}`}
+                  variant={photoData.photoFilter === filter.id ? "default" : "outline"}
                   onClick={() => handleFilterChange(filter.id)}
+                  className="h-auto py-2"
                 >
                   {filter.name}
+                </Button>
+              ))}
+            </div>
+          </div>
+          
+          {/* Background Color */}
+          <div className="bg-white p-4 rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold mb-4">Background Color</h2>
+            <div className="flex flex-wrap gap-2">
+              {colors.map((color) => (
+                <button
+                  key={color.id}
+                  onClick={() => handleBgColorChange(color.value)}
+                  className={`w-10 h-10 rounded-full border-2 ${
+                    photoData.backgroundColor === color.value ? 'border-blue-500' : 'border-gray-200'
+                  }`}
+                  style={{ backgroundColor: color.value }}
+                  aria-label={`Set background color to ${color.id}`}
+                />
+              ))}
+            </div>
+          </div>
+          
+          {/* Toggle Date */}
+          <div className="bg-white p-4 rounded-lg shadow-md">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Show Date</h2>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={photoData.dateEnabled}
+                  onChange={handleDateToggle}
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+          </div>
+          
+          {/* Stickers */}
+          <div className="bg-white p-4 rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold mb-4">Stickers</h2>
+            <div className="grid grid-cols-4 gap-2">
+              {stickers.map((sticker) => (
+                <button
+                  key={sticker.id}
+                  onClick={() => handleAddSticker(sticker.image)}
+                  className="p-2 border rounded-lg hover:bg-gray-50"
+                >
+                  <img 
+                    src={sticker.image} 
+                    alt={sticker.id} 
+                    className="w-full aspect-square object-contain"
+                    draggable="false"
+                  />
                 </button>
               ))}
             </div>
           </div>
-          
-          <div className="bg-white/70 backdrop-blur-sm p-4 rounded-xl shadow-md">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold text-frame-dark">Date</h2>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  className="sr-only peer" 
-                  checked={showDateToggle}
-                  onChange={e => handleDateToggle(e.target.checked)}
-                />
-                <div className="w-11 h-6 bg-frame-secondary rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-frame-primary"></div>
-              </label>
-            </div>
-            {showDateToggle && (
-              <input
-                type="text"
-                value={dateText}
-                onChange={e => setDateText(e.target.value)}
-                className="w-full p-2 border border-frame-secondary rounded"
-                placeholder="Enter date text"
-              />
-            )}
-          </div>
-          
-          <div className="bg-white/70 backdrop-blur-sm p-4 rounded-xl shadow-md">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold text-frame-dark">Studio Name</h2>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  className="sr-only peer" 
-                  checked={showStudioName}
-                  onChange={e => handleStudioNameToggle(e.target.checked)}
-                />
-                <div className="w-11 h-6 bg-frame-secondary rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-frame-primary"></div>
-              </label>
-            </div>
-            {showStudioName && (
-              <input
-                type="text"
-                value={studioName}
-                onChange={e => setStudioName(e.target.value)}
-                className="w-full p-2 border border-frame-secondary rounded"
-                placeholder="Enter studio name"
-              />
-            )}
-          </div>
         </div>
       </main>
+      
+      {/* Preview Modal */}
+      {isPreviewMode && !isDownloading && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white p-4 rounded-lg shadow-lg max-w-lg w-full">
+            <div className="flex justify-between mb-4">
+              <h2 className="text-xl font-semibold">Preview</h2>
+              <button 
+                onClick={closePreview}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ×
+              </button>
+            </div>
+            <div 
+              ref={previewRef}
+              className="mx-auto"
+              style={{ backgroundColor: photoData.backgroundColor, padding: "12px", maxWidth: "320px" }}
+            >
+              {photoData.photos.map((photo, index) => (
+                <div key={index} className="photo-item mb-3">
+                  <img 
+                    src={photo} 
+                    alt={`Photo ${index + 1}`} 
+                    className={`w-full object-cover ${photoData.photoFilter}`}
+                  />
+                </div>
+              ))}
+              
+              {photoData.dateEnabled && (
+                <div className="text-center font-semibold py-2">
+                  {new Date().toLocaleDateString()}
+                </div>
+              )}
+              
+              {/* Stickers without controls */}
+              {photoData.stickers.map((sticker) => (
+                <div
+                  key={sticker.id}
+                  className="absolute"
+                  style={{
+                    left: `${sticker.x}px`,
+                    top: `${sticker.y}px`,
+                    transform: `scale(${sticker.scale})`,
+                  }}
+                >
+                  <img 
+                    src={sticker.image} 
+                    alt="Sticker" 
+                    className="w-16 h-16"
+                    draggable="false"
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex justify-center">
+              <Button onClick={closePreview}>Close Preview</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
