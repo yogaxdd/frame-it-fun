@@ -1,8 +1,8 @@
 
 import { Link, useNavigate } from "react-router-dom";
-import { Camera, Upload, Image as ImageIcon, Edit } from "lucide-react";
+import { Camera, Upload, Image as ImageIcon, Edit, Plus } from "lucide-react";
 import Header from "@/components/Header";
-import { useContext, useState } from "react";
+import { useContext, useState, useRef } from "react";
 import { PhotoContext } from "@/App";
 import { toast } from "sonner";
 
@@ -10,6 +10,7 @@ const Index = () => {
   const photoContext = useContext(PhotoContext);
   const navigate = useNavigate();
   const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -45,6 +46,11 @@ const Index = () => {
       });
       
       toast.success(`${photos.length} photo${photos.length > 1 ? 's' : ''} uploaded successfully!`);
+
+      // Reset file input to allow uploading the same file again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     });
   };
   
@@ -65,6 +71,12 @@ const Index = () => {
       return;
     }
     navigate("/edit");
+  };
+
+  const triggerFileUpload = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
   };
   
   return (
@@ -88,10 +100,17 @@ const Index = () => {
                 <h2 className="text-xl font-semibold text-frame-dark">Uploaded Photos ({uploadedPhotos.length})</h2>
                 <div className="flex gap-2">
                   <button 
+                    onClick={triggerFileUpload}
+                    className="secondary-action-button"
+                  >
+                    <Plus size={18} />
+                    <span>Upload More</span>
+                  </button>
+                  <button 
                     onClick={handleClearPhotos}
                     className="secondary-action-button"
                   >
-                    Clear All
+                    <span>Clear All</span>
                   </button>
                   <button 
                     onClick={handleProceedToEdit}
@@ -144,6 +163,7 @@ const Index = () => {
                 multiple
                 className="hidden"
                 onChange={handleFileUpload}
+                ref={fileInputRef}
               />
               <div className="w-24 h-24 mb-6 flex items-center justify-center rounded-full bg-frame-secondary text-frame-primary group-hover:bg-frame-primary group-hover:text-white transition-colors">
                 <Upload size={48} />

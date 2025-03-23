@@ -1,3 +1,4 @@
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
@@ -27,10 +28,6 @@ export default defineConfig(({ mode }) => ({
       },
       output: {
         assetFileNames: (assetInfo) => {
-          // Keep stickers in their own directory
-          if (assetInfo.name && assetInfo.name.includes('stickers/')) {
-            return 'assets/[name][extname]';
-          }
           return 'assets/[name]-[hash][extname]';
         },
       },
