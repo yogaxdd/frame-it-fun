@@ -1,3 +1,4 @@
+
 import { useContext, useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -32,22 +33,23 @@ const StickerElement = ({
   const [showControls, setShowControls] = useState(false);
   
   const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent default action (download)
+    e.stopPropagation();
     setIsDragging(true);
     setStartPos({
       x: e.clientX - sticker.x,
       y: e.clientY - sticker.y
     });
-    e.stopPropagation();
   };
   
   const handleTouchStart = (e: React.TouchEvent) => {
+    e.stopPropagation();
     setIsDragging(true);
     const touch = e.touches[0];
     setStartPos({
       x: touch.clientX - sticker.x,
       y: touch.clientY - sticker.y
     });
-    e.stopPropagation();
   };
   
   useEffect(() => {
@@ -92,18 +94,27 @@ const StickerElement = ({
   }, [isDragging, startPos, onUpdatePosition, sticker.id]);
   
   const handleZoomIn = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent default action (download)
     e.stopPropagation();
     onUpdateScale(sticker.id, sticker.scale + 0.1);
   };
   
   const handleZoomOut = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent default action (download)
     e.stopPropagation();
     onUpdateScale(sticker.id, Math.max(0.2, sticker.scale - 0.1));
   };
   
   const handleDelete = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent default action (download)
     e.stopPropagation();
     onDelete(sticker.id);
+  };
+
+  const handleStickerClick = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent default action (download)
+    e.stopPropagation();
+    setShowControls(!showControls);
   };
 
   return (
@@ -114,16 +125,27 @@ const StickerElement = ({
         top: `${sticker.y}px`,
         transform: `scale(${sticker.scale})`,
         cursor: isDragging ? "grabbing" : "grab",
+        position: "absolute",
+        zIndex: 10,
       }}
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
-      onClick={() => setShowControls(!showControls)}
+      onClick={handleStickerClick}
     >
-      <img src={sticker.image} alt="sticker" style={{ width: "60px", height: "60px" }} />
+      <img 
+        src={sticker.image} 
+        alt="sticker" 
+        style={{ width: "60px", height: "60px", pointerEvents: "none" }} 
+        draggable="false"
+      />
       
       {showControls && (
-        <div className="absolute flex -top-8 left-1/2 transform -translate-x-1/2 bg-white rounded-full shadow-md p-1">
+        <div 
+          className="absolute flex -top-8 left-1/2 transform -translate-x-1/2 bg-white rounded-full shadow-md p-1"
+          onClick={e => e.stopPropagation()}
+        >
           <button
+            type="button"
             onClick={handleZoomIn}
             className="p-1 hover:bg-frame-secondary rounded-full"
             title="Increase size"
@@ -131,6 +153,7 @@ const StickerElement = ({
             <ZoomIn size={16} />
           </button>
           <button
+            type="button"
             onClick={handleZoomOut}
             className="p-1 hover:bg-frame-secondary rounded-full"
             title="Decrease size"
@@ -138,6 +161,7 @@ const StickerElement = ({
             <ZoomOut size={16} />
           </button>
           <button
+            type="button"
             onClick={handleDelete}
             className="p-1 hover:bg-red-100 text-red-500 rounded-full"
             title="Remove sticker"

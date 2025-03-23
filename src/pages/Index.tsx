@@ -100,6 +100,7 @@ const Index = () => {
                 <h2 className="text-xl font-semibold text-frame-dark">Uploaded Photos ({uploadedPhotos.length})</h2>
                 <div className="flex gap-2">
                   <button 
+                    type="button"
                     onClick={triggerFileUpload}
                     className="secondary-action-button"
                   >
@@ -107,12 +108,14 @@ const Index = () => {
                     <span>Upload More</span>
                   </button>
                   <button 
+                    type="button"
                     onClick={handleClearPhotos}
                     className="secondary-action-button"
                   >
                     <span>Clear All</span>
                   </button>
                   <button 
+                    type="button"
                     onClick={handleProceedToEdit}
                     className="main-action-button"
                   >
