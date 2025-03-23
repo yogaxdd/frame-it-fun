@@ -34,10 +34,5 @@ export const stickers = [
     id: 'sticker7',
     name: 'Lion',
     image: 'https://raw.githubusercontent.com/yogaxdd/frame-it-fun/main/stickers/lion_1f981.png'
-  },
-  {
-    id: 'sticker8',
-    name: 'Pink Ribbon',
-    image: 'https://raw.githubusercontent.com/yogaxdd/frame-it-fun/main/stickers/2c648a0b-d404-4120-a631-cd69ac6c6de3.png'
   }
 ];
